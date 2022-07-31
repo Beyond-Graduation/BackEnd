@@ -6,10 +6,13 @@
 
 - Alumni SignUp
   Request
+
   ```jsx
   [POST] localhost:4000/alumni/signup
   ```
+
   Body
+
   ```jsx
   {
       "userId":"1213yt",
@@ -25,7 +28,9 @@
 
   }
   ```
+
   Response
+
   ```jsx
   {
       "_id": "62dbd9ca3be2e10775087338",
@@ -60,6 +65,7 @@
       "__v": 0
   }
   ```
+
 - Alumni Login [Common for All]
   Request
   ```jsx
@@ -80,12 +86,15 @@
   ```
 - Alumni Update [Profile] [Given that alumni are Logged in]
   Request
+
   ```jsx
   [POST] localhost:4000/alumni/update
   ```
-  The header of Request [For all logged-in activities of the corresponding user after login with the Token received [bearer [space] <token>]
-  ![Untitled](Routes%20Documentation%20%5BPrivate%5D%20d1c0d4414732473788c764efce2f2091/Untitled.png)
+
+  The header of Request [front-end must add encrypted Token for in the Authorization of Header in Request for verification.]
+  ![Authentication](https://fine-babcat-b55.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Ff94bb1a8-e756-44ca-aab0-3393eb7e9faf%2FUntitled.png)
   Body
+
   ```jsx
   {
       "areasOfInterest":["NLP","Computer Vision","ML"],
@@ -93,7 +102,9 @@
 
   }
   ```
+
   Response
+
   ```jsx
   {
       "areasOfInterest": [
@@ -142,12 +153,16 @@
       "__v": 0
   }
   ```
+
 - Alumni Blog Create
   Request
+
   ```jsx
   [POST] localhost:4000/blog/create
   ```
+
   Body
+
   ```jsx
   {
   		"blogId":"b62345",
@@ -157,7 +172,9 @@
 
   }
   ```
+
   Response
+
   ```jsx
   {
       "domain": [
@@ -173,12 +190,16 @@
       "__v": 0
   }
   ```
+
 - Student SignUp
   Request
+
   ```jsx
   [POST] localhost:4000/student/signup
   ```
+
   Body
+
   ```jsx
   {
       "userId":"144u62",
@@ -200,7 +221,9 @@
 
   }
   ```
+
   Response
+
   ```jsx
   {
       "areasOfInterest": [
@@ -257,7 +280,7 @@
   Instruction
   _Use Token in Header of Request for all logged in activities_
 
-**For all logged in activities**, front-end must add encrypted Token for verification.
+**For all logged in activities**, front-end must add encrypted Token for in the Authorization of Header in Request for verification.
 
 ![Untitled](Routes%20Documentation%20%5BPrivate%5D%20d1c0d4414732473788c764efce2f2091/Untitled.png)
 
@@ -564,10 +587,13 @@
     ```
 - Alumni Filter
   Request
+
   ```jsx
   [GET] localhost:4000/alumni/filter
   ```
+
   Body [All fields are optional] [Area of Interest all of them should be in the alumni’s interest]
+
   ```jsx
   {
 
@@ -577,6 +603,7 @@
       "after":1990
   }
   ```
+
   - Response
     ```jsx
     [
@@ -625,6 +652,7 @@
       },
     ];
     ```
+
 - Get Alumni Profile Details
   Request
   ```jsx
