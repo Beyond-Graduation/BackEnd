@@ -282,7 +282,7 @@
 
 **For all logged in activities**, front-end must add encrypted Token for in the Authorization of Header in Request for verification.
 
-![Untitled](Routes%20Documentation%20%5BPrivate%5D%20d1c0d4414732473788c764efce2f2091/Untitled.png)
+![Authentication](https://fine-babcat-b55.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Ff94bb1a8-e756-44ca-aab0-3393eb7e9faf%2FUntitled.png)
 
 - Get Student List
   Request
