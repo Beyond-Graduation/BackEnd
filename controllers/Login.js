@@ -21,9 +21,13 @@ router.post("/", async (req, res) => {
         const user = await User.findOne({ email: req.body.email });
       // check if the user exists
         if (user) {
+
             //check if password matches
             const result = await bcrypt.compare(req.body.password, user.password);
             if (result) {
+              if(user.__t=="AlumniPending"){
+                res.status(400).json({ error: "Pending Verification!" });
+              }
             // sign token and send it in response
             const token = await jwt.sign({ userId: user.userId, userType:user.__t }, SECRET);
             res.json({ "token":token, "userId": user.userId, "userType": user.__t });

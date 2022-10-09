@@ -1,8 +1,10 @@
 require("dotenv").config(); // loading env variables
 const jwt = require("jsonwebtoken");
 // const User = require("../models/User");
+const Todo = require("../models/Todo");
 const Blog = require("../models/Blog");
 const Alumni = require("../models/Alumni");
+const AlumniPending = require("../models/AlumniPending");
 const Student = require("../models/Student");
 
 // CREATE CONTEXT MIDDLEWARE
@@ -10,7 +12,9 @@ const createContext = (req, res, next) => {
   // put any data you want in the object below to be accessible to all routes
   req.context = {
     models: {
+      Todo,
       Student,
+      AlumniPending,
       Alumni,
       Blog
     },

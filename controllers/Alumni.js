@@ -82,12 +82,12 @@ router.post("/filter",isLoggedIn,async(req,res)=>{
 
 // Signup route to create a new user
 router.post("/signup", async (req, res) => {
-  const { Alumni } = req.context.models;
+  const { AlumniPending } = req.context.models;
   try {
     // hash the password
     req.body.password = await bcrypt.hash(req.body.password, 10);
     // create a new user
-    const user = await Alumni.create(req.body);
+    const user = await AlumniPending.create(req.body);
     // send new user as response
     res.json(user);
   } catch (error) {
