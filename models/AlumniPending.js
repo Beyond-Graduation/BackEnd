@@ -47,10 +47,11 @@ const AlumniSchema = new Schema({
 // Alumni model
 // const Alumni = model("Alumni", AlumniSchema)
 // const User = model("User", UserSchema)
-const Alumni = User.discriminator("Alumni", AlumniSchema)
+
+const AlumniPending = User.discriminator("AlumniPending", AlumniSchema)
 
 
-module.exports = Alumni
+module.exports = AlumniPending
 
 
 

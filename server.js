@@ -10,7 +10,7 @@ const AlumniRouter = require("./controllers/Alumni") // import Alumni Routes
 const BlogRouter = require("./controllers/Blog") // import Blog Routes
 const StudentRouter = require("./controllers/Student")
 const LoginRouter = require("./controllers/Login")
-
+const AdminRouter = require("./controllers/Admin")
 
 //DESTRUCTURE ENV VARIABLES WITH DEFAULT VALUES
 const {PORT = 3000} = process.env
@@ -35,6 +35,7 @@ app.use("/alumni", AlumniRouter) // send all "/alumni" request to AlumniROuter
 app.use("/blog", BlogRouter) // send all "/Blog" request to BlogROuter
 app.use("/student", StudentRouter) 
 app.use("/login", LoginRouter) 
+app.use("/admin", AdminRouter) 
 
 // APP LISTENER
 app.listen(PORT, () => log.green("SERVER STATUS", `Listening on port ${PORT}`))
