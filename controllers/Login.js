@@ -26,7 +26,7 @@ router.post("/", async (req, res) => {
             const result = await bcrypt.compare(req.body.password, user.password);
             if (result) {
               if(user.__t=="AlumniPending"){
-                res.status(400).json({ error: "Verification Pending!" });
+                res.status(400).json({ error: "Institute Verification Pending!" });
               }
             // sign token and send it in response
             const token = await jwt.sign({ userId: user.userId, userType:user.__t }, SECRET);
