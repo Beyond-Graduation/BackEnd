@@ -6,16 +6,12 @@ const User = require('../models/User');
 var start = new Date();
 var ymax = start.getFullYear();
 
-const higherSecondarySchema = new Schema({
-    board:{type:String},
-    cgpa:{type:Number, min: 1, max: 100, required:true}
-  });
 
 
 // Alumni Schema
 const AdminSchema = new Schema({
     designation:{type: String,required: true},
-    staffId:{type: String, unique: true, requried: true}});
+    staffId:{type: String, unique: true, required: true}});
 
 // Alumni model
 // const User = model("User", UserSchema)
