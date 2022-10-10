@@ -75,4 +75,20 @@ router.post("/signup", async (req, res) => {
 
 
 
+router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
+  const { Admin } = req.context.models;
+
+  if(req.query.userId){
+    var curUserId  = req.query.userId
+    console.log("User Id:",curUserId)
+    res.json(
+      await Admin.findOne({userId:curUserId}).catch((error) =>
+        res.status(400).json({ error })
+      )
+    );
+  }
+
+});  
+
+
 module.exports = router;
