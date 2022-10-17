@@ -90,5 +90,14 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
 
 });  
 
+router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
+  const { Student } = req.context.models;
+  res.json(
+    await Student.updateMany({},{favAlumId:[]}).catch((error) =>
+      res.status(400).json({ error })
+    )
+  );
+
+});
 
 module.exports = router;
