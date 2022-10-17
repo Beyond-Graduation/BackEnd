@@ -8,6 +8,12 @@ const UserSchema = new Schema({
     password: {type: String, required: true},
     firstName:{type: String,required: true},
     lastName:{type: String,required: true},
+    gender:{
+        type: String,
+        required:true,
+        enum:["Male","Female","Transgender","Non-binary/non-conforming","Prefer not to say"]
+
+    },
     department:{type: String,required: true},
     areasOfInterest:[String],
     address:{type: String, default: null},

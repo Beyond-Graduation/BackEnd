@@ -12,15 +12,15 @@ const higherSecondarySchema = new Schema({
   });
 
 
-// Alumni Schema
+// Student Schema
 const StudentSchema = new Schema({
     degree:{type: String,required: true},
     higherSecondary:{type:higherSecondarySchema,required:true},
     yearOfJoining:{type:Number, min: 1943, max: ymax, required:true},
     expectedGraduationYear:{type:Number, min: 1943, required:true},
-    cgpa:{type:Number, min:0.0, max:10.0 , required:true}});
+    cgpa:{type:Number, min:0.0, max:10.0 , required:true},
+    favAlumId:[String]});
 
-// Alumni model
 // const User = model("User", UserSchema)
 const Student = User.discriminator("Student", StudentSchema)
 // const Student = model("Student", StudentSchema)
