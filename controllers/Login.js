@@ -15,6 +15,7 @@ const { SECRET = "secret" } = process.env;
 router.post("/", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
+    console.log(user)
     // check if the user exists
     if (user) {
       //check if password matches

@@ -20,6 +20,7 @@ const UserSchema = new Schema({
     linkedin:{type:String, default: null},
     github:{type:String, default: null},
     otherLinks:{type:String, default: null},
+    bookmarkBlog:[String],
     updated: { type: Date, default: Date.now }
 })
 
