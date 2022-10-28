@@ -116,4 +116,75 @@ router.post("/favAlumAdd", isLoggedIn, async (req, res) => {
   }
 });
 
+// Route to get favorite alumni list
+router.get("/favAlumlist", isLoggedIn, async (req, res) => {
+  const curUserId  = req.user.userId;
+  const { Student } = req.context.models;
+  try {
+    // check if the user exists
+    const user = await Student.findOne({userId: curUserId  });
+    
+    
+    if (user) {
+      var curFavAlums=user.favAlumId
+      console.log(curFavAlums)
+      res.json(curFavAlums);
+
+    } else {
+      res.status(400).json({ error: curUserId + " Does Not exist" });
+    }
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+});
+
+// Route to add bookmarks
+router.post("/bookmark", isLoggedIn, async (req, res) => {
+  const curUserId  = req.user.userId;
+  const newblogId = req.body.blogId;
+  const { Student } = req.context.models;
+  try {
+    // check if the user exists
+    const user = await Student.findOne({userId: curUserId  });
+    req.body.updated = Date.now()
+    var curBookmarkBlogs=user.bookmarkBlog
+    
+    if (user && curBookmarkBlogs.includes(newblogId)==false) {
+      curBookmarkBlogs.push(newblogId)
+      console.log(curBookmarkBlogs)
+      await Student.updateOne({ userId: curUserId  }, {bookmarkBlog:curBookmarkBlogs});
+      // send updated user as response
+      const user = await Student.findOne({ userId: curUserId });
+      res.json(user);
+
+    } else {
+      res.status(400).json({ error: newblogId + " is already Bookmarked!" });
+    }
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+});
+
+// Route toget bookmarks
+router.get("/bookmarklist", isLoggedIn, async (req, res) => {
+  const curUserId  = req.user.userId;
+  const { Student } = req.context.models;
+  try {
+    // check if the user exists
+    const user = await Student.findOne({userId: curUserId  });
+    
+    
+    if (user) {
+      var curBookmarkBlogs=user.bookmarkBlog
+      console.log(curBookmarkBlogs)
+      res.json(curBookmarkBlogs);
+
+    } else {
+      res.status(400).json({ error: curUserId + " Does Not exist" });
+    }
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+});
+
 module.exports = router;
