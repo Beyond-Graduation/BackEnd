@@ -96,9 +96,9 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
 });  
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { AlumniPending } = req.context.models;
+  const { Admin} = req.context.models;
   res.json(
-    await AlumniPending.updateMany({},{gender:"Male"}).catch((error) =>
+    await Admin.updateMany({},{bookmarkBlog:[]}).catch((error) =>
       res.status(400).json({ error })
     )
   );

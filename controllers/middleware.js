@@ -1,7 +1,7 @@
 require("dotenv").config(); // loading env variables
 const jwt = require("jsonwebtoken");
 // const User = require("../models/User");
-const Todo = require("../models/Todo");
+// const Todo = require("../models/Todo");
 const Blog = require("../models/Blog");
 const Alumni = require("../models/Alumni");
 const AlumniPending = require("../models/AlumniPending");
@@ -14,7 +14,6 @@ const createContext = (req, res, next) => {
   req.context = {
     models: {
       Admin,
-      Todo,
       Student,
       AlumniPending,
       Alumni,
