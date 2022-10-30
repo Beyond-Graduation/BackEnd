@@ -39,9 +39,10 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
   if(req.body.userId){
     curUserId = req.body.userId
     let user = await AlumniPending.findOne({userId: curUserId  });
-    user = user.toObject();
-    console.log(user)
+    
     if(user){
+        user = user.toObject();
+        console.log(user)
         const { Alumni }= req.context.models;
         delete user._id;
         delete user.__t;
@@ -51,8 +52,12 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
             await AlumniPending.remove({userId: curUserId  });
         }
         updatedUser = await Alumni.create(user);
+        res.json(updatedUser);
     }
-    res.json(updatedUser);
+    else{
+      res.status(400).json({ error: req.body.userId + " is not a pending alumni" });
+    }
+    
   }
   
 })
