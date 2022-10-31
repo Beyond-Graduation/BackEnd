@@ -41,7 +41,9 @@ const AlumniSchema = new Schema({
     workExperience:{type: [workExperienceSchema],
                     required:true},
     publications:{type:[publicationsSchema],
-        default:null}})
+        default:null},
+    profileCompletionPerc:{type:Number, min: 0.0, max: 100.0, default:10.0, required:true}
+});
 
 
 // Alumni model
