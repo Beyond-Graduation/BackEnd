@@ -86,9 +86,25 @@ router.post("/signup", async (req, res) => {
   try {
     // hash the password
     req.body.password = await bcrypt.hash(req.body.password, 10);
+    req.body.updated = Date.now();
     // create a new user
-    const user = await AlumniPending.create(req.body);
-    // send new user as response
+    await AlumniPending.create(req.body);
+    var user = await AlumniPending.findOne({ userId: req.body.userId }).lean();
+    const totalFields= 14
+    var emptyFields=0
+    const exclusions = ["bookmarkBlog","favAlumId","__v"]
+    for (const key of Object.keys(user)) {
+      if( user[key] || exclusions.includes(key)){
+      }
+      else{
+        console.log(key)
+        emptyFields++
+      }
+    }
+    req.body.profileCompletionPerc= parseInt(100- ((emptyFields/totalFields)*100))
+    await AlumniPending.updateOne({ userId: user.userId }, req.body);
+    
+    user = await AlumniPending.findOne({ userId: user.userId }).lean();
     res.json(user);
   } catch (error) {
     res.status(400).json({ error });
@@ -105,13 +121,28 @@ router.post("/update", isLoggedIn, async (req, res) => {
   
   try {
     // check if the user exists
-    const user = await Alumni.findOne({userId: curUserId  });
+    var user = await Alumni.findOne({userId: curUserId  }).lean();
     req.body.updated = Date.now()
     if (user) {
       //check if password matches
       await Alumni.updateOne({userId: curUserId  }, req.body);
+      var user = await Alumni.findOne({ userId: curUserId }).lean();
+      console.log(user)
+      const totalFields= 14
+      var emptyFields=0
+      const exclusions = ["bookmarkBlog","favAlumId","__v"]
+      for (const key of Object.keys(user)) {
+        if( user[key] || exclusions.includes(key)){
+        }
+        else{
+          console.log(key)
+          emptyFields++
+        }
+      }
+      req.body.profileCompletionPerc= parseInt(100- ((emptyFields/totalFields)*100))
+      await Alumni.updateOne({ userId: user.userId }, req.body);
       // send updated user as response
-      const user = await Alumni.findOne({userId: curUserId  });
+      user = await Alumni.findOne({userId: curUserId  });
       res.json(user);
     } else {
       res.status(400).json({ error: "Alumni doesn't exist" });

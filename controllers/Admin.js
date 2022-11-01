@@ -69,6 +69,7 @@ router.post("/signup", async (req, res) => {
     try {
       // hash the password
       req.body.password = await bcrypt.hash(req.body.password, 10);
+      req.body.updated = Date.now();
       // create a new user
       const user = await Admin.create(req.body);
       // send new user as response
@@ -96,9 +97,9 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
 });  
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { Admin} = req.context.models;
+  const { AlumniPending } = req.context.models;
   res.json(
-    await Admin.updateMany({},{bookmarkBlog:[]}).catch((error) =>
+    await AlumniPending.updateMany({},{profileCompletionPerc:10.0}).catch((error) =>
       res.status(400).json({ error })
     )
   );

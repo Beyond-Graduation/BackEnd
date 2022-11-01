@@ -8,7 +8,8 @@ const BlogSchema = new Schema({
     lastName:{type: String,required: true},
     title:{type: String,required: true},
     domain:[{type: String,required: true}],
-    content:{type: String,required: true}
+    content:{type: String,required: true},
+    abstract:{type: String,required: true}
 })
 
 // Alumni model
