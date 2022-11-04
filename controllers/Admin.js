@@ -97,9 +97,24 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
 });  
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { AlumniPending } = req.context.models;
+  const { Student } = req.context.models;
+  var users = await Student.find({}).lean();
+  for (let user of users){
+      const totalFields= 14
+      var emptyFields=0
+      const exclusions = ["bookmarkBlog","favAlumId","__v"]
+      for (const key of Object.keys(user)) {
+        if( user[key] || exclusions.includes(key)){
+        }
+        else{
+          emptyFields++
+        }
+      }
+      user.profileCompletionPerc= parseInt(100- ((emptyFields/totalFields)*100))
+      await Student.updateOne({ userId: user.userId }, user);
+    }
   res.json(
-    await AlumniPending.updateMany({},{profileCompletionPerc:10.0}).catch((error) =>
+    await (Student.find({}).lean()).catch((error) =>
       res.status(400).json({ error })
     )
   );
