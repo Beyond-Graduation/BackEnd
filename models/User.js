@@ -22,6 +22,7 @@ const UserSchema = new Schema({
     github:{type:String, default: null},
     otherLinks:{type:String, default: null},
     bookmarkBlog:[String],
+    resume:{type: String,default:""},
     updated: { type: Date, default: Date.now }
 })
 
