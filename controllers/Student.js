@@ -84,11 +84,11 @@ router.post("/update", isLoggedIn, async (req, res) => {
   const { Student } = req.context.models;
   try {
     // check if the user exists
-    const user = await Student.findOne({userId: curUserId  }).lean();
+    var user = await Student.findOne({userId: curUserId  }).lean();
     req.body.updated = Date.now()
     if (user) {
       await Student.updateOne({userId: curUserId  }, req.body);
-      var user = await Student.findOne({ userId: curUserId }).lean();
+      user = await Student.findOne({ userId: curUserId }).lean();
       console.log(user)
       const totalFields= 14
       var emptyFields=0

@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAdminLoggedIn } = require("./middleware");
+const AlumniPending = require("../models/AlumniPending");
 
 const router = Router(); // create router to create route bundle
 
@@ -99,7 +100,7 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
   const { AlumniPending } = req.context.models;
   res.json(
-    await AlumniPending.updateMany({},{profileCompletionPerc:10.0}).catch((error) =>
+      await AlumniPending.updateMany({},{resume:""}).catch((error) =>
       res.status(400).json({ error })
     )
   );
