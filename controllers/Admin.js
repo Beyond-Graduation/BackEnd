@@ -60,8 +60,7 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
     }
     
   }
-  
-})
+});
 
 
 // Signup route to create a new user
@@ -94,8 +93,38 @@ router.get("/admin_details", isAdminLoggedIn, async (req, res) => {
       )
     );
   }
-
 });  
+
+router.post("/notice_approve",isAdminLoggedIn,async(req,res)=>{
+  const { NoticePending }= req.context.models;
+  var query = {}
+  if(req.body.noticeId){
+    curNoticeId = req.body.noticeId
+    let notice = await NoticePending.findOne({noticeId: curNoticeId  });
+    notice = notice.toObject();
+    console.log(notice)
+    if(notice){
+        const { Notice }= req.context.models;
+        delete notice._id;
+        
+        if(notice){
+            
+            await NoticePending.remove({noticeId: curNoticeId  });
+        }
+        updatedNotice = await Notice.create(notice);
+    }
+    res.json(updatedNotice);
+  }
+});
+
+router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
+  const { NoticePending } = req.context.models;
+  res.json(
+      await NoticePending.find().catch((error) =>
+        res.status(400).json({ error })
+      )
+    );
+  });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
   const { AlumniPending } = req.context.models;
@@ -104,7 +133,6 @@ router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
       res.status(400).json({ error })
     )
   );
-
 });
 
 module.exports = router;

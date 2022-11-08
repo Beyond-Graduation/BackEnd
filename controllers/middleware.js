@@ -7,6 +7,8 @@ const Alumni = require("../models/Alumni");
 const AlumniPending = require("../models/AlumniPending");
 const Student = require("../models/Student");
 const Admin = require("../models/Admin");
+const Notice = require("../models/Notice")
+const NoticePending = require("../models/NoticePending")
 
 // CREATE CONTEXT MIDDLEWARE
 const createContext = (req, res, next) => {
@@ -17,7 +19,9 @@ const createContext = (req, res, next) => {
       Student,
       AlumniPending,
       Alumni,
-      Blog
+      Blog,
+      Notice,
+      NoticePending
     },
   };
   next();
