@@ -1,6 +1,6 @@
 const {Schema, model} = require("../db/connection") // import Schema & model
 
-// Alumni Schema
+// Blog Schema
 const BlogSchema = new Schema({
     blogId:{type: String, requried: true},
     userId:{type: String, requried: true},
@@ -11,7 +11,7 @@ const BlogSchema = new Schema({
     content:{type: String,required: true}
 })
 
-// Alumni model
+// Blog model
 const Blog = model("Blog", BlogSchema)
 
 module.exports = Blog

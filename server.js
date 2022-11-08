@@ -11,6 +11,7 @@ const BlogRouter = require("./controllers/Blog") // import Blog Routes
 const StudentRouter = require("./controllers/Student")
 const LoginRouter = require("./controllers/Login")
 const AdminRouter = require("./controllers/Admin")
+const NoticeRouter = require("./controllers/Notice")
 
 //DESTRUCTURE ENV VARIABLES WITH DEFAULT VALUES
 const {PORT = 3000} = process.env
@@ -36,6 +37,7 @@ app.use("/blog", BlogRouter) // send all "/Blog" request to BlogROuter
 app.use("/student", StudentRouter) 
 app.use("/login", LoginRouter) 
 app.use("/admin", AdminRouter) 
+app.use("/notice",NoticeRouter)
 
 // APP LISTENER
 app.listen(PORT, () => log.green("SERVER STATUS", `Listening on port ${PORT}`))
