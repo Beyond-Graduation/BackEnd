@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAdminLoggedIn } = require("./middleware");
+const AlumniPending = require("../models/AlumniPending");
 
 const router = Router(); // create router to create route bundle
 
@@ -39,9 +40,10 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
   if(req.body.userId){
     curUserId = req.body.userId
     let user = await AlumniPending.findOne({userId: curUserId  });
-    user = user.toObject();
-    console.log(user)
+    
     if(user){
+        user = user.toObject();
+        console.log(user)
         const { Alumni }= req.context.models;
         delete user._id;
         delete user.__t;
@@ -51,8 +53,12 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
             await AlumniPending.remove({userId: curUserId  });
         }
         updatedUser = await Alumni.create(user);
+        res.json(updatedUser);
     }
-    res.json(updatedUser);
+    else{
+      res.status(400).json({ error: req.body.userId + " is not a pending alumni" });
+    }
+    
   }
 });
 
@@ -63,6 +69,7 @@ router.post("/signup", async (req, res) => {
     try {
       // hash the password
       req.body.password = await bcrypt.hash(req.body.password, 10);
+      req.body.updated = Date.now();
       // create a new user
       const user = await Admin.create(req.body);
       // send new user as response
@@ -120,9 +127,9 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { Admin} = req.context.models;
+  const { AlumniPending } = req.context.models;
   res.json(
-    await Admin.updateMany({},{bookmarkBlog:[]}).catch((error) =>
+      await AlumniPending.updateMany({},{resume:""}).catch((error) =>
       res.status(400).json({ error })
     )
   );

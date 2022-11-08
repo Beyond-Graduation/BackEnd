@@ -14,6 +14,7 @@ const UserSchema = new Schema({
         enum:["Male","Female","Transgender","Non-binary/non-conforming","Prefer not to say"]
 
     },
+    profilePicPath:{type:String , default:"https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460__340.png"},
     department:{type: String,required: true},
     areasOfInterest:[String],
     address:{type: String, default: null},
@@ -21,6 +22,7 @@ const UserSchema = new Schema({
     github:{type:String, default: null},
     otherLinks:{type:String, default: null},
     bookmarkBlog:[String],
+    resume:{type: String,default:""},
     updated: { type: Date, default: Date.now }
 })
 

@@ -19,7 +19,8 @@ const StudentSchema = new Schema({
     yearOfJoining:{type:Number, min: 1943, max: ymax, required:true},
     expectedGraduationYear:{type:Number, min: 1943, required:true},
     cgpa:{type:Number, min:0.0, max:10.0 , required:true},
-    favAlumId:[String]});
+    favAlumId:[String],
+    profileCompletionPerc:{type:Number, min: 0.0, max: 100.0, default:10.0,required:true}});
 
 // const User = model("User", UserSchema)
 const Student = User.discriminator("Student", StudentSchema)
