@@ -11,6 +11,24 @@ const higherSecondarySchema = new Schema({
     cgpa:{type:Number, min: 1, max: 100, required:true}
   });
 
+  const internshipSchema = new Schema({
+    from:{type:Number, min: 1943, max: ymax},
+    to:{type:Number, min: 1943, max: ymax},
+    company:{type:String},
+    role:{type:String},
+    contribution:{type:String}
+  });
+
+
+  const projectSchema = new Schema({
+    from:{type:Number, min: 1900, max: ymax},
+    to:{type:Number, min: 1900, max: ymax},
+    title:{type:String},
+    domain:{type:String},
+    role:{type:String},
+    link:{type:String},
+    description:{type:String}
+  });
 
 // Student Schema
 const StudentSchema = new Schema({
@@ -20,6 +38,8 @@ const StudentSchema = new Schema({
     expectedGraduationYear:{type:Number, min: 1943, required:true},
     cgpa:{type:Number, min:0.0, max:10.0 , required:true},
     favAlumId:[String],
+    internships:{type:[internshipSchema]},
+    projects:{type:[projectSchema]},
     profileCompletionPerc:{type:Number, min: 0.0, max: 100.0, default:10.0,required:true}});
 
 // const User = model("User", UserSchema)
