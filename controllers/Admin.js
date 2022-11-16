@@ -1,4 +1,5 @@
 require("dotenv").config(); // load .env variables
+const nodemailer = require('nodemailer'); // import nodemailer to send emails
 const { Router } = require("express"); // import router from express
 const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
@@ -34,16 +35,14 @@ router.get("/pending_alumni_list", isAdminLoggedIn, async (req, res) => {
   });
 
 
-router.post("/approve",isAdminLoggedIn,async(req,res)=>{
+router.post("/alumni_approve",isAdminLoggedIn,async(req,res)=>{
   const { AlumniPending }= req.context.models;
   var query = {}
   if(req.body.userId){
     curUserId = req.body.userId
-    let user = await AlumniPending.findOne({userId: curUserId  });
+    let user = await AlumniPending.findOne({userId: curUserId  }).lean();
     
     if(user){
-        user = user.toObject();
-        console.log(user)
         const { Alumni }= req.context.models;
         delete user._id;
         delete user.__t;
@@ -53,6 +52,28 @@ router.post("/approve",isAdminLoggedIn,async(req,res)=>{
             await AlumniPending.remove({userId: curUserId  });
         }
         updatedUser = await Alumni.create(user);
+        const transporter = nodemailer.createTransport({
+          service:"Gmail",
+          auth:{
+              user:process.env.MAIL_ID,
+              pass:process.env.MAIL_PASSWORD
+          }
+        });
+        const options={
+          from:process.env.MAIL_ID,
+          to:updatedUser.email,
+          subject:"Your Alumni Profile Verified",
+          text:"Hi "+updatedUser.firstName+",\nThanks for registering to Beyond Grad! We have officially verified you as an Alumni and are looking forward to your valuable contribution. Kindly go ahead and login :)\n\nRegards,\nBeyond Graduation,\nCETAA"
+      
+      }
+      transporter.sendMail(options,function(err,info){
+          if(err){
+              console.log(err);
+              return;
+          }
+          console.log("Sent :" + info.response)
+      })
+        
         res.json(updatedUser);
     }
     else{
@@ -100,8 +121,8 @@ router.post("/notice_approve",isAdminLoggedIn,async(req,res)=>{
   var query = {}
   if(req.body.noticeId){
     curNoticeId = req.body.noticeId
-    let notice = await NoticePending.findOne({noticeId: curNoticeId  });
-    notice = notice.toObject();
+    let notice = await NoticePending.findOne({noticeId: curNoticeId  }).lean();
+    // notice = notice.toObject();
     console.log(notice)
     if(notice){
         const { Notice }= req.context.models;
