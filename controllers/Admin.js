@@ -148,9 +148,9 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { Student } = req.context.models;
+  const { Blog } = req.context.models;
   res.json(
-      await Student.updateMany({},{projects:[],internships:[]}).catch((error) =>
+      await Blog.updateMany({},{dateUploaded:Date.now(),dateModified:Date.now(),imagePath:"",likes:2}).catch((error) =>
       res.status(400).json({ error })
     )
   );
