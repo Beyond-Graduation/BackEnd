@@ -207,12 +207,19 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-  const { Blog } = req.context.models;
-  res.json(
-      await Blog.updateMany({},{dateUploaded:Date.now(),dateModified:Date.now(),likes:2}).catch((error) =>
-      res.status(400).json({ error })
-    )
-  );
-});
+      const {Alumni} = req.context.models;
+      var allStudents = await Alumni.find({}).lean();
+      var dummyIndex=1000
+      for(let stud of allStudents){
+        
+        // let newadmission = Math.floor(Math.random() * (99) + 1);
+        let newStudent =  await Alumni.updateOne({userId:stud.userId}, {admissionId: dummyIndex });
+        dummyIndex++
+        console.log(newStudent)
+        // console.log(newStudent.firstName,newStudent.admissionId);
+      }
+  });
 
 module.exports = router;
+
+
