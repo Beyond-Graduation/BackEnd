@@ -34,6 +34,7 @@ const higherSecondarySchema = new Schema({
 const StudentSchema = new Schema({
     degree:{type: String,required: true},
     higherSecondary:{type:higherSecondarySchema,required:true},
+    admissionId:{type:Number,min: 0, unique: true, required: true},
     yearOfJoining:{type:Number, min: 1943, max: ymax, required:true},
     expectedGraduationYear:{type:Number, min: 1943, required:true},
     cgpa:{type:Number, min:0.0, max:10.0 , required:true},
