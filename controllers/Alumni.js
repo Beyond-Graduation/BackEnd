@@ -135,7 +135,6 @@ router.post("/update", isLoggedIn, async (req, res) => {
         if( user[key] || exclusions.includes(key)){
         }
         else{
-          console.log(key)
           emptyFields++
         }
       }

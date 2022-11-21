@@ -43,15 +43,7 @@ router.post("/alumni_approve",isAdminLoggedIn,async(req,res)=>{
     let user = await AlumniPending.findOne({userId: curUserId  }).lean();
     
     if(user){
-        const { Alumni }= req.context.models;
-        delete user._id;
-        delete user.__t;
-        
-        if(user){
-            
-            await AlumniPending.remove({userId: curUserId  });
-        }
-        updatedUser = await Alumni.create(user);
+        await AlumniPending.remove({userId: curUserId  });
         const transporter = nodemailer.createTransport({
           service:"Gmail",
           auth:{
@@ -59,22 +51,49 @@ router.post("/alumni_approve",isAdminLoggedIn,async(req,res)=>{
               pass:process.env.MAIL_PASSWORD
           }
         });
-        const options={
-          from:process.env.MAIL_ID,
-          to:updatedUser.email,
-          subject:"Your Alumni Profile Verified",
-          text:"Hi "+updatedUser.firstName+",\nThanks for registering to Beyond Grad! We have officially verified you as an Alumni and are looking forward to your valuable contribution. Kindly go ahead and login :)\n\nRegards,\nBeyond Graduation,\nCETAA"
-      
-      }
-      transporter.sendMail(options,function(err,info){
-          if(err){
-              console.log(err);
-              return;
-          }
-          console.log("Sent :" + info.response)
-      })
+        if(req.body.approved==0){
+          const options={
+            from:process.env.MAIL_ID,
+            to:user.email,
+            subject:"Your Profile Registration application has been rejected!",
+            text:"Hi "+user.firstName+",\nYour Profile Registration application has been rejected as we couldn't verify your profile. Kindly re-register or contact us for solving the issue if you are an Alumni of CET.\n\nRegards,\nBeyond Graduation,\nCETAA"
         
-        res.json(updatedUser);
+          }
+          transporter.sendMail(options,function(err,info){
+            if(err){
+                console.log(err);
+                return;
+            }
+            console.log("Sent :" + info.response)
+          })
+          res.send("User registration request rejected for "+user.firstName+".");
+          return;
+        }
+        else{
+          const { Alumni }= req.context.models;
+          delete user._id;
+          delete user.__t;
+
+          updatedUser = await Alumni.create(user);
+          
+          const options={
+            from:process.env.MAIL_ID,
+            to:updatedUser.email,
+            subject:"Your Alumni Profile Verified",
+            text:"Hi "+updatedUser.firstName+",\nThanks for registering to Beyond Grad! We have officially verified you as an Alumni and are looking forward to your valuable contribution. Kindly go ahead and login :)\n\nRegards,\nBeyond Graduation,\nCETAA"
+        
+          }
+          transporter.sendMail(options,function(err,info){
+            if(err){
+                console.log(err);
+                return;
+            }
+            console.log("Sent :" + info.response)
+          })
+          
+          res.json(updatedUser);
+        }
+        
     }
     else{
       res.status(400).json({ error: req.body.userId + " is not a pending alumni" });
@@ -122,17 +141,57 @@ router.post("/notice_approve",isAdminLoggedIn,async(req,res)=>{
   if(req.body.noticeId){
     curNoticeId = req.body.noticeId
     let notice = await NoticePending.findOne({noticeId: curNoticeId  }).lean();
-    // notice = notice.toObject();
-    console.log(notice)
+    const { Alumni }= req.context.models;
+    var alumniDetails = await Alumni.findOne({userId:notice.userId}).lean();
     if(notice){
         const { Notice }= req.context.models;
         delete notice._id;
+        await NoticePending.remove({noticeId: curNoticeId  });
+        const transporter = nodemailer.createTransport({
+          service:"Gmail",
+          auth:{
+              user:process.env.MAIL_ID,
+              pass:process.env.MAIL_PASSWORD
+          }
+        });
+        if(req.body.approved==0){
+          const options={
+            from:process.env.MAIL_ID,
+            to:alumniDetails.email,
+            subject:"Your Notice has been Rejected",
+            text:"Hi "+alumniDetails.firstName+",\n Sorry to inform that your Notice titled "+notice.title+" has been Rejected. Kindly Contact the admin to know more.\n\nRegards,\nBeyond Graduation,\nCETAA"
         
-        if(notice){
-            
-            await NoticePending.remove({noticeId: curNoticeId  });
+          }
+          transporter.sendMail(options,function(err,info){
+            if(err){
+                console.log(err);
+                return;
+            }
+            console.log("Sent :" + info.response)
+          })
+          res.send("Notice request rejected for "+alumniDetails.firstName+".");
+          return;
         }
-        updatedNotice = await Notice.create(notice);
+        else{
+          var updatedNotice = await Notice.create(notice);
+          const options={
+            from:process.env.MAIL_ID,
+            to:alumniDetails.email,
+            subject:"Your Notice has been Approved",
+            text:"Hi "+alumniDetails.firstName+",\n Your notice titled "+notice.title+" has been Approved. Thanks for your contribution :)\n\nRegards,\nBeyond Graduation,\nCETAA"
+        
+          }
+          transporter.sendMail(options,function(err,info){
+            if(err){
+                console.log(err);
+                return;
+            }
+            console.log("Sent :" + info.response)
+          })
+          res.send("Notice request approved for "+alumniDetails.firstName+".");
+          return;
+        }
+        
     }
     res.json(updatedNotice);
   }
@@ -147,7 +206,7 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
     );
   });
 
-  router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
+router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
       const {Alumni} = req.context.models;
       var allStudents = await Alumni.find({}).lean();
       var dummyIndex=1000
