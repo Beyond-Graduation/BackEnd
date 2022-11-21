@@ -8,6 +8,7 @@ const NoticeSchema = new Schema({
     lastName:{type: String,required: true},
     title:{type: String,required: true},
     content:{type: String,required: true},
+    attachmentPath:{type:String,default:""},
     dateUploaded: { type: Date, default: Date.now }
 })
 
