@@ -16,14 +16,14 @@ router.get("/", isLoggedIn, async (req, res) => {
   if(req.query.blogId){
     var curBlogId  = req.query.blogId
     res.json(
-      await Blog.find({blogId : curBlogId}).catch((error) =>
+      await Blog.findOne({blogId : curBlogId}).lean().catch((error) =>
         res.status(400).json({ error })
       )
     );
   }
   else{
     res.json(
-      await Blog.find().catch((error) =>
+      await Blog.find().lean().catch((error) =>
         res.status(400).json({ error })
       )
     );
@@ -36,7 +36,7 @@ router.post("/create", isAlumniLoggedIn, async (req, res) => {
   const { Blog } = req.context.models;
   const { Alumni } = req.context.models;
   const curUserId = req.user.userId;
-  const user = await Alumni.findOne({userId: curUserId  });// get username from req.user property created by isLoggedIn middleware
+  const user = await Alumni.findOne({userId: curUserId  }).lean();// get username from req.user property created by isLoggedIn middleware
   req.body.userId = curUserId; // add userId property to req.body
   req.body.firstName = user.firstName
   req.body.lastName = user.lastName
@@ -46,6 +46,27 @@ router.post("/create", isAlumniLoggedIn, async (req, res) => {
       res.status(400).json({ error })
     )
   );
+});
+
+
+// Login route to verify a user and get a token
+router.post("/update", isAlumniLoggedIn, async (req, res) => {
+  const curUserId  = req.user.userId;
+  const { Blog } = req.context.models;
+  try {
+    // check if the user exists
+    var blog = await Blog.findOne({blogId: req.body.blogId }).lean();
+    req.body.dateModified = Date.now()
+    if (blog || blog.userId == curUserId) {
+      blog = await Blog.updateOne({blogId: req.body.blogId  }, req.body);
+      console.log(blog)
+      res.json(blog);
+    } else {
+      res.status(400).json({ error: "Blog doesn't exist or is not published by the Current user " });
+    }
+  } catch (error) {
+    res.status(400).json({ error });
+  }
 });
 
 
