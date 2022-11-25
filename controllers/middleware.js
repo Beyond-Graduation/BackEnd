@@ -3,12 +3,15 @@ const jwt = require("jsonwebtoken");
 // const User = require("../models/User");
 // const Todo = require("../models/Todo");
 const Blog = require("../models/Blog");
+const BlogComments = require("../models/BlogComments");
 const Alumni = require("../models/Alumni");
 const AlumniPending = require("../models/AlumniPending");
 const Student = require("../models/Student");
 const Admin = require("../models/Admin");
 const Notice = require("../models/Notice")
 const NoticePending = require("../models/NoticePending")
+
+const User = require("../models/User")
 
 // CREATE CONTEXT MIDDLEWARE
 const createContext = (req, res, next) => {
@@ -21,7 +24,9 @@ const createContext = (req, res, next) => {
       Alumni,
       Blog,
       Notice,
-      NoticePending
+      NoticePending,
+      BlogComments,
+      User
     },
   };
   next();

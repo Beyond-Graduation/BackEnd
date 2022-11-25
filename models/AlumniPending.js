@@ -74,7 +74,7 @@ module.exports = AlumniPending
 //                     Contribution:{type:String}}],
 //     publications:[{domain:{type:String},title:{type:String},link:{type:String},description:{type:String}}]
         
-//     // userId:{type: String, unique: true, requried: true},
+//     // userId:{type: String, unique: true, required: true},
 //     // username: {type: String, unique: true, required: true},
 //     // email:{type: String, unique: true, required: true},
 //     // password: {type: String, unique: true, required: true},
