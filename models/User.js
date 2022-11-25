@@ -23,7 +23,8 @@ const UserSchema = new Schema({
     otherLinks:{type:String, default: null},
     bookmarkBlog:[String],
     resume:{type: String,default:""},
-    updated: { type: Date, default: Date.now }
+    updated: { type: Date, default: Date.now },
+    likedBlogs:[String]
 })
 
 // // User model

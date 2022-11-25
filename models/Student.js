@@ -62,7 +62,7 @@ module.exports = Student
 // StudentSchema.add(UserSchema).add({
 //     cgpa:{type:Number, min:1.0, max:10.0 , required:true}
         
-//     // userId:{type: String, unique: true, requried: true},
+//     // userId:{type: String, unique: true, required: true},
 //     // username: {type: String, unique: true, required: true},
 //     // email:{type: String, unique: true, required: true},
 //     // password: {type: String, unique: true, required: true},

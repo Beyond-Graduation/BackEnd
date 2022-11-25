@@ -110,6 +110,7 @@ router.post("/signup", async (req, res) => {
       // hash the password
       req.body.password = await bcrypt.hash(req.body.password, 10);
       req.body.updated = Date.now();
+      req.body.likedBlogs=[]
       // create a new user
       const user = await Admin.create(req.body);
       // send new user as response
@@ -207,17 +208,12 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-      const {Alumni} = req.context.models;
-      var allStudents = await Alumni.find({}).lean();
-      var dummyIndex=1000
-      for(let stud of allStudents){
-        
-        // let newadmission = Math.floor(Math.random() * (99) + 1);
-        let newStudent =  await Alumni.updateOne({userId:stud.userId}, {admissionId: dummyIndex });
-        dummyIndex++
-        console.log(newStudent)
-        // console.log(newStudent.firstName,newStudent.admissionId);
-      }
+      const {Blog} = req.context.models;
+      res.json(
+        await Blog.updateMany({},{likes:0}).catch((error) =>
+        res.status(400).json({ error })
+      )
+      )
   });
 
 module.exports = router;

@@ -87,6 +87,7 @@ router.post("/signup", async (req, res) => {
     // hash the password
     req.body.password = await bcrypt.hash(req.body.password, 10);
     req.body.updated = Date.now();
+    req.body.likedBlogs=[]
     // create a new user
     await AlumniPending.create(req.body);
     var user = await AlumniPending.findOne({ userId: req.body.userId }).lean();
