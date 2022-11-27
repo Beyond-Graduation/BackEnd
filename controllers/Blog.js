@@ -154,26 +154,23 @@ router.post("/addComments", isLoggedIn, async (req, res) => {
 
 router.get("/getComments", isLoggedIn, async (req, res) => {
   const { BlogComments } = req.context.models;
-  if (req.query.blogId) {
-    var blogId = req.query.blogId;
-    res.json(
-      await BlogComments.find({ blogId: blogId })
-        .lean()
-        .catch((error) => res.status(400).json({ error }))
-    );
-  } else if (req.query.parentId) {
+  if (req.query.parentId) {
     var curCommentId = req.query.parentId;
     res.json(
       await BlogComments.find({ parent: curCommentId })
         .lean()
         .catch((error) => res.status(400).json({ error }))
     );
-  } else {
+  }
+  else if (req.query.blogId) {
+    var blogId = req.query.blogId;
     res.json(
-      await BlogComments.find({ parent: null })
+      await BlogComments.find({ blogId: blogId , parent: null})
         .lean()
         .catch((error) => res.status(400).json({ error }))
     );
+  } else {
+    res.send("If you want parent comments of a blog, keep blogId in query, else if you want child comments of a parent comment, keep parentId in the query")
   }
 });
 
