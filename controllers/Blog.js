@@ -113,7 +113,7 @@ router.post("/like", isLoggedIn, async (req, res) => {
       await Blog.updateOne({ blogId: req.body.blogId }, { likes: blog.likes });
       blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
     }
-    res.json(blog);
+    res.json(user);
   } catch (error) {
     res.status(400).json({ error });
   }
