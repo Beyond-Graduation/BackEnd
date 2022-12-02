@@ -18,6 +18,7 @@ const UserSchema = new Schema({
     department:{type: String,required: true},
     areasOfInterest:[String],
     address:{type: String, default: null},
+    phone:{type: String,required:true},
     linkedin:{type:String, default: null},
     github:{type:String, default: null},
     otherLinks:{type:String, default: null},
