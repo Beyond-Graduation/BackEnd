@@ -208,9 +208,9 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   });
 
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-      const {Blog} = req.context.models;
+      const {User} = req.context.models;
       res.json(
-        await Blog.updateMany({},{likes:0}).catch((error) =>
+        await User.updateMany({},{phone:"7306429812"}).catch((error) =>
         res.status(400).json({ error })
       )
       )
