@@ -20,14 +20,14 @@ router.get("/pending_alumni_list", isAdminLoggedIn, async (req, res) => {
       var dept  = req.query.department
       console.log("Department:",dept)
       res.json(
-        await AlumniPending.find({department : dept}).catch((error) =>
+        await AlumniPending.find({department : dept}).lean().sort({dateJoined:-1}).catch((error) =>
           res.status(400).json({ error })
         )
       );
     }
     else{
       res.json(
-        await AlumniPending.find().catch((error) =>
+        await AlumniPending.find().lean().sort({dateJoined:-1}).catch((error) =>
           res.status(400).json({ error })
         )
       );
@@ -201,7 +201,7 @@ router.post("/notice_approve",isAdminLoggedIn,async(req,res)=>{
 router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
   const { NoticePending } = req.context.models;
   res.json(
-      await NoticePending.find().catch((error) =>
+      await NoticePending.find().lean().sort({dateUploaded:-1,title:1}).catch((error) =>
         res.status(400).json({ error })
       )
     );
@@ -210,7 +210,7 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
 router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
       const {User} = req.context.models;
       res.json(
-        await User.updateMany({},{phone:"7306429812"}).catch((error) =>
+        await User.updateMany({},{dateJoined:Date.now()}).catch((error) =>
         res.status(400).json({ error })
       )
       )

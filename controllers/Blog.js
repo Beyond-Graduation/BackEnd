@@ -33,7 +33,7 @@ router.get("/", isLoggedIn, async (req, res) => {
       res.json(
         // title:1 => ascending 
         await Blog.find()
-          .lean().sort({title:1,dateUploaded:-1})
+          .lean().collation({'locale':'en'}).sort({title:1,dateUploaded:-1})
           .catch((error) => res.status(400).json({ error }))
       );
   
@@ -42,7 +42,7 @@ router.get("/", isLoggedIn, async (req, res) => {
       res.json(
         // likes:-1 => descending , dateUploaded:-1 ==> latest
         await Blog.find()
-          .lean().sort({likes:-1,dateUploaded:-1})
+          .lean().collation({'locale':'en'}).sort({likes:-1,dateUploaded:-1})
           .catch((error) => res.status(400).json({ error }))
       );
   
@@ -51,7 +51,7 @@ router.get("/", isLoggedIn, async (req, res) => {
       res.json(
         // dateUploaded:-1 ==> latest
         await Blog.find()
-          .lean().sort({dateUploaded:-1})
+          .lean().collation({'locale':'en'}).sort({dateUploaded:-1})
           .catch((error) => res.status(400).json({ error }))
       )
     }
@@ -59,14 +59,14 @@ router.get("/", isLoggedIn, async (req, res) => {
       res.json(
         // dateUploaded:1 ==> oldest
         await Blog.find()
-          .lean().sort({dateUploaded:1})
+          .lean().collation({'locale':'en'}).sort({dateUploaded:1})
           .catch((error) => res.status(400).json({ error }))
       );
   
     }
     res.json(
       await Blog.find()
-        .lean().sort({dateUploaded:-1})
+        .lean().collation({'locale':'en'}).sort({dateUploaded:-1})
         .catch((error) => res.status(400).json({ error }))
     );
   
