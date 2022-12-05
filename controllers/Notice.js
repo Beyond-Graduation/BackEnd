@@ -47,14 +47,14 @@ router.get("/", isLoggedIn, async (req, res) => {
   if(req.query.noticeId){
     var curNoticeId  = req.query.noticeId
     res.json(
-      await Notice.find({noticeId : curNoticeId}).catch((error) =>
+      await Notice.findOne({noticeId : curNoticeId}).lean().catch((error) =>
         res.status(400).json({ error })
       )
     );
   }
   else{
     res.json(
-      await Notice.find().catch((error) =>
+      await Notice.find().lean().collation({'locale':'en'}).sort({dateUploaded:-1,title:1}).catch((error) =>
         res.status(400).json({ error })
       )
     );

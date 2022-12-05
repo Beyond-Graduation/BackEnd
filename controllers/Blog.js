@@ -29,13 +29,47 @@ router.get("/", isLoggedIn, async (req, res) => {
       blog.isBookmarked = false;
     }
     res.json(blog);
-  } else {
+  } else if(req.query.sort=="blogname"){
+      res.json(
+        // title:1 => ascending 
+        await Blog.find()
+          .lean().collation({'locale':'en'}).sort({title:1,dateUploaded:-1})
+          .catch((error) => res.status(400).json({ error }))
+      );
+  
+    }
+    else if(req.query.sort=="popular"){
+      res.json(
+        // likes:-1 => descending , dateUploaded:-1 ==> latest
+        await Blog.find()
+          .lean().collation({'locale':'en'}).sort({likes:-1,dateUploaded:-1})
+          .catch((error) => res.status(400).json({ error }))
+      );
+  
+    }
+    else if(req.query.sort=="latest"){
+      res.json(
+        // dateUploaded:-1 ==> latest
+        await Blog.find()
+          .lean().collation({'locale':'en'}).sort({dateUploaded:-1})
+          .catch((error) => res.status(400).json({ error }))
+      )
+    }
+    else if(req.query.sort=="oldest"){
+      res.json(
+        // dateUploaded:1 ==> oldest
+        await Blog.find()
+          .lean().collation({'locale':'en'}).sort({dateUploaded:1})
+          .catch((error) => res.status(400).json({ error }))
+      );
+  
+    }
     res.json(
       await Blog.find()
-        .lean()
+        .lean().collation({'locale':'en'}).sort({dateUploaded:-1})
         .catch((error) => res.status(400).json({ error }))
     );
-  }
+  
 });
 
 // create Route with isLoggedIn middleware

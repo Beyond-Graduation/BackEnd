@@ -17,13 +17,42 @@ router.get("/alumni_list", isLoggedIn, async (req, res) => {
     var dept = req.query.department;
     console.log("Department:", dept);
     res.json(
-      await Alumni.find({ department: dept }).catch((error) =>
+      await Alumni.find({ department: dept }).lean().collation({'locale':'en'}).sort({firstName:1,lastName:1,dateJoined:-1,updated:-1}).catch((error) =>
         res.status(400).json({ error })
       )
     );
-  } else {
+  } else if(req.query.sort=="name"){
     res.json(
-      await Alumni.find().catch((error) => res.status(400).json({ error }))
+      await Alumni.find()
+        .lean().collation({'locale':'en'}).sort({firstName:1,lastName:1,dateJoined:-1,updated:-1})
+        .catch((error) => res.status(400).json({ error }))
+    );
+
+  }
+  else if(req.query.sort=="latest"){
+    res.json(
+      // likes:-1 => descending , dateUploaded:-1 ==> latest
+      await Alumni.find()
+        .lean().collation({'locale':'en'}).sort({dateJoined:-1,updated:-1})
+        .catch((error) => res.status(400).json({ error }))
+    );
+
+  }
+  else if(req.query.sort=="oldest"){
+    res.json(
+      // dateUploaded:1 ==> oldest
+      await Alumni.find()
+        .lean().collation({'locale':'en'}).sort({dateJoined:1,updated:1})
+        .catch((error) => res.status(400).json({ error }))
+    );
+    return;
+
+  }
+  else{
+    res.json(
+      await Alumni.find()
+        .lean().collation({'locale':'en'}).sort({firstName:1,lastName:1,dateJoined:-1,updated:-1})
+        .catch((error) => res.status(400).json({ error }))
     );
   }
 });

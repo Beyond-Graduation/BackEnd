@@ -25,6 +25,7 @@ const UserSchema = new Schema({
     bookmarkBlog:[String],
     resume:{type: String,default:""},
     updated: { type: Date, default: Date.now },
+    dateJoined: {type:Date, default: Date.now},
     likedBlogs:[String]
 })
 
