@@ -9,6 +9,7 @@ var ymax = start.getFullYear();
 
 const  higherStudiesSchema = new Schema({
     degree:{type:String},
+    
     university:{type:String},
     yearGraduation:{type:Number, min: 1943, max: ymax},
     subject:{type:String}
@@ -32,6 +33,7 @@ const publicationsSchema = new Schema({
 
 const AlumniSchema = new Schema({
     degree:{type: String,required: true},
+    admissionId:{type: Number,min: 0, unique: true, required: true},
     yearGraduation:{type:Number, min: 1943, max: ymax,required:true},
     higherStudies:{
         type:[higherStudiesSchema],
