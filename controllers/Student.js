@@ -126,20 +126,23 @@ router.post("/favAlumAdd", isLoggedIn, async (req, res) => {
     req.body.updated = Date.now()
     var curFavAlums=user.favAlumId
     
-    
     if (user && curFavAlums.includes(newAlumId)==false) {
       curFavAlums.push(newAlumId)
-      console.log(curFavAlums)
+      // console.log(curFavAlums)
       await Student.updateOne({ userId: curUserId  }, {favAlumId:curFavAlums});
       // send updated user as response
       const user = await Student.findOne({ userId: curUserId });
       res.json(user);
-
     } else {
-      res.status(400).json({ error: newAlumId + " is already Favorite!" });
+      curFavAlums = curFavAlums.filter((x) => x !== newAlumId);
+      await Student.updateOne({ userId: curUserId  }, {favAlumId:curFavAlums});
+      // send updated user as response
+      const user = await Student.findOne({ userId: curUserId });
+      res.json(user);
     }
   } catch (error) {
-    res.status(400).json({ error });
+    console.log(error)
+    res.status(400).json({ error });  
   }
 });
 

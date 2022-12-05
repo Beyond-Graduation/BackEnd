@@ -12,7 +12,7 @@ router.get("/", isLoggedIn, async (req, res) => {
   const { Blog } = req.context.models;
   if (req.query.blogId) {
     var curBlogId = req.query.blogId;
-    blog = await Blog.findOne({ blogId: curBlogId })
+    var blog = await Blog.findOne({ blogId: curBlogId })
       .lean()
       .catch((error) => res.status(400).json({ error }));
     const curUserId = req.user.userId;
@@ -22,6 +22,11 @@ router.get("/", isLoggedIn, async (req, res) => {
       blog.isLiked = true;
     } else {
       blog.isLiked = false;
+    }
+    if (user.bookmarkBlog.includes(curBlogId) == true) {
+      blog.isBookmarked = true;
+    } else {
+      blog.isBookmarked = false;
     }
     res.json(blog);
   } else {
@@ -62,11 +67,9 @@ router.post("/update", isAlumniLoggedIn, async (req, res) => {
       console.log(blog);
       res.json(blog);
     } else {
-      res
-        .status(400)
-        .json({
-          error: "Blog doesn't exist or is not published by the Current user ",
-        });
+      res.status(400).json({
+        error: "Blog doesn't exist or is not published by the Current user ",
+      });
     }
   } catch (error) {
     res.status(400).json({ error });
@@ -84,7 +87,7 @@ router.post("/like", isLoggedIn, async (req, res) => {
     // check if the user exists
     if (user.likedBlogs.includes(req.body.blogId) == false) {
       blog.likes++;
-      console.log(blog.likes)
+      console.log(blog.likes);
 
       user.likedBlogs.push(req.body.blogId);
       await User.updateOne(
@@ -114,6 +117,40 @@ router.post("/like", isLoggedIn, async (req, res) => {
       blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
     }
     res.json(user);
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+});
+
+router.post("/bookmark", isLoggedIn, async (req, res) => {
+  const curUserId = req.user.userId;
+  const newblogId = req.body.blogId;
+  const { User } = req.context.models;
+  try {
+    // check if the user exists
+    const user = await User.findOne({ userId: curUserId });
+    req.body.updated = Date.now();
+    var curBookmarkBlogs = user.bookmarkBlog;
+
+    if (user && curBookmarkBlogs.includes(newblogId) == false) {
+      curBookmarkBlogs.push(newblogId);
+      console.log(curBookmarkBlogs);
+      await User.updateOne(
+        { userId: curUserId },
+        { bookmarkBlog: curBookmarkBlogs }
+      );
+      // send updated user as response
+      const user = await User.findOne({ userId: curUserId });
+      res.json(user);
+    } else {
+      curBookmarkBlogs = curBookmarkBlogs.filter((x) => x !== newblogId);
+      await User.updateOne(
+        { userId: curUserId },
+        { bookmarkBlog: curBookmarkBlogs }
+      );
+      const user = await User.findOne({ userId: curUserId });
+      res.json(user);
+    }
   } catch (error) {
     res.status(400).json({ error });
   }
@@ -161,16 +198,17 @@ router.get("/getComments", isLoggedIn, async (req, res) => {
         .lean()
         .catch((error) => res.status(400).json({ error }))
     );
-  }
-  else if (req.query.blogId) {
+  } else if (req.query.blogId) {
     var blogId = req.query.blogId;
     res.json(
-      await BlogComments.find({ blogId: blogId , parent: null})
+      await BlogComments.find({ blogId: blogId, parent: null })
         .lean()
         .catch((error) => res.status(400).json({ error }))
     );
   } else {
-    res.send("If you want parent comments of a blog, keep blogId in query, else if you want child comments of a parent comment, keep parentId in the query")
+    res.send(
+      "If you want parent comments of a blog, keep blogId in query, else if you want child comments of a parent comment, keep parentId in the query"
+    );
   }
 });
 
