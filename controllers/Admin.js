@@ -207,14 +207,36 @@ router.get("/pending_notice_list", isAdminLoggedIn, async (req, res) => {
     );
   });
 
-router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
-      const {User} = req.context.models;
-      res.json(
-        await User.updateMany({},{dateJoined:Date.now()}).catch((error) =>
-        res.status(400).json({ error })
-      )
-      )
+
+
+
+router.get("/stats", isAdminLoggedIn, async (req, res) => {
+
+
+    var counts ={};
+    counts.Admin = await (req.context.models.Admin).countDocuments({});
+    counts.Alumni = await (req.context.models.Alumni).countDocuments({});
+    counts.AlumniPending = await (req.context.models.AlumniPending).countDocuments({});
+    counts.Student = await (req.context.models.Student).countDocuments({});
+    counts.Blog = await (req.context.models.Blog).countDocuments({});
+    counts.Notice = await (req.context.models.Notice).countDocuments({});
+    counts.NoticePending = await (req.context.models.NoticePending).countDocuments({});
+    counts.BlogComments = await (req.context.models.BlogComments).countDocuments({});
+    res.json(counts);
+
   });
+
+
+router.post("/dbrepair", isAdminLoggedIn,async (req, res) => {
+    const {User} = req.context.models;
+    res.json(
+      await User.updateMany({},{dateJoined:Date.now()}).catch((error) =>
+      res.status(400).json({ error })
+    )
+    )
+});
+
+
 
 module.exports = router;
 
