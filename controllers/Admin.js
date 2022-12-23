@@ -43,7 +43,7 @@ router.post("/alumni_approve",isAdminLoggedIn,async(req,res)=>{
     let user = await AlumniPending.findOne({userId: curUserId  }).lean();
     
     if(user){
-        await AlumniPending.remove({userId: curUserId  });
+        
         const transporter = nodemailer.createTransport({
           service:"Gmail",
           auth:{
@@ -52,34 +52,40 @@ router.post("/alumni_approve",isAdminLoggedIn,async(req,res)=>{
           }
         });
         if(req.body.approved==0){
-          const options={
-            from:process.env.MAIL_ID,
-            to:user.email,
-            subject:"Your Profile Registration application has been rejected!",
-            text:"Hi "+user.firstName+",\nYour Profile Registration application has been rejected as we couldn't verify your profile. Kindly re-register or contact us for solving the issue if you are an Alumni of CET.\n\nRegards,\nBeyond Graduation,\nCETAA"
-        
-          }
-          transporter.sendMail(options,function(err,info){
-            if(err){
-                console.log(err);
-                return;
+          if(req.body.remarks && req.body.remarks.length>10){
+              const options={
+                from:process.env.MAIL_ID,
+                to:user.email,
+                subject:"Your Profile Registration application has been rejected!",
+                text:"Hi "+user.firstName+",\nYour Profile Registration application has been rejected as we couldn't verify your profile.\nRemarks:"+req.body.remarks+"\nKindly re-register or contact us for solving the issue if you are an Alumni of CET.\n\nRegards,\nBeyond Graduation,\nCETAA"
+              }
+              transporter.sendMail(options,function(err,info){
+                if(err){ 
+                    console.log(err);
+                    return;
+                }
+                console.log("Sent :" + info.response)
+              })
+              await AlumniPending.remove({userId: curUserId  });
+              res.send("User registration request rejected for "+user.firstName+".");
+              return;
             }
-            console.log("Sent :" + info.response)
-          })
-          res.send("User registration request rejected for "+user.firstName+".");
-          return;
-        }
+            else{
+              res.send("Kindly add remarks of more than 10 characters to reject a User");
+            }
+          }
+          
         else{
           const { Alumni }= req.context.models;
           delete user._id;
           delete user.__t;
-
+          await AlumniPending.remove({userId: curUserId  });
           updatedUser = await Alumni.create(user);
           
           const options={
             from:process.env.MAIL_ID,
             to:updatedUser.email,
-            subject:"Your Alumni Profile Verified",
+            subject:"Your Alumni Profile has been Verified",
             text:"Hi "+updatedUser.firstName+",\nThanks for registering to Beyond Grad! We have officially verified you as an Alumni and are looking forward to your valuable contribution. Kindly go ahead and login :)\n\nRegards,\nBeyond Graduation,\nCETAA"
         
           }
