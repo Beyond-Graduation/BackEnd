@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node -L server.js"
+    "dev": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +16,7 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "file": "^0.2.2",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "mercedlogger": "^1.0.1",
     "mongoose": "^5.13.7",
     "mongoose-schema-extend": "^0.2.2",
