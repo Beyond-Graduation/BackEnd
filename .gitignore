@@ -3,5 +3,4 @@ node_modules/
 /.vscode
 models/Todo.js
 controllers/Todo.js
-controllers/User.js
 mail.js
