@@ -228,9 +228,9 @@ router.get("/stats", isAdminLoggedIn, async(req, res) => {
 
 
 router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
-    const { User } = req.context.models;
+    const { NoticePending } = req.context.models;
     res.json(
-        await User.updateMany({}, { passwordResetToken: "000000000000000" }).catch((error) =>
+        await NoticePending.updateMany({}, { noticeType: "Public" }).catch((error) =>
             res.status(400).json({ error })
         )
     )
