@@ -126,7 +126,7 @@ router.post("/forgot_password", async (req, res) => {
       subject: "BeGrad : Password Reset Link!",
       text:
         "Hi, \nFollowing your request to reset password to login, we have generated a unique password reset link below:\n" +
-        "https://localhost:4000/reset_password/" +
+        "https://beyond-graduation.github.io/reset_password/" +
         passwordResetToken +
         "  \nKindly click on the link quickly to reset your password.\n\nRegards,\nBeyond Graduation,\nCETAA",
     };
