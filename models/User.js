@@ -1,6 +1,12 @@
 const { Schema, model } = require("../db/connection") // import Schema & model
 
 
+const blogClickSchema = new Schema({
+    blogId: { type: String },
+    count: { type: Number, min: 0, default: 1 },
+    lastClick: { type: Date, default: Date.now }
+});
+
 // User Schema
 const UserSchema = new Schema({
     userId: { type: String, unique: true, required: true },
@@ -28,6 +34,7 @@ const UserSchema = new Schema({
     dateJoined: { type: Date, default: Date.now },
     likedBlogs: [String],
     passwordResetToken: { type: String, default: "000000000000000", length: 15 },
+    blogClicks: { type: [blogClickSchema] }
 })
 
 // // User model

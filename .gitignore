@@ -4,3 +4,4 @@ node_modules/
 models/Todo.js
 controllers/Todo.js
 mail.js
+recoenv/
