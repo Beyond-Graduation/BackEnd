@@ -228,9 +228,9 @@ router.get("/stats", isAdminLoggedIn, async(req, res) => {
 
 
 router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
-    const { NoticePending } = req.context.models;
+    const { Blog } = req.context.models;
     res.json(
-        await NoticePending.updateMany({}, { noticeType: "Public" }).catch((error) =>
+        await Blog.updateMany({}, { clicks: 0 }).catch((error) =>
             res.status(400).json({ error })
         )
     )
