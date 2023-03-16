@@ -204,4 +204,16 @@ router.post("/reset_password", async (req, res) => {
   }
 });
 
+router.get("/getDetails/:userId", isLoggedIn, async (req, res) => {
+  const { User } = req.context.models;
+  if (req.params.userId) {
+    var curUserId = req.params.userId;
+    res.json(
+      await User.findOne({ userId: curUserId }).catch((error) =>
+        res.status(400).json({ error })
+      )
+    );
+  }
+});
+
 module.exports = router;
