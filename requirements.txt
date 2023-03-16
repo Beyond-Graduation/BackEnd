@@ -1,1 +1,8 @@
 pymongo[srv]
+pandas
+scikit-learn
+beautifulsoup4
+clean-text
+numpy
+nltk
+requests
