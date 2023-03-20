@@ -19,7 +19,7 @@ import re
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix,vstack
 
 import requests
 from bs4 import BeautifulSoup
@@ -131,8 +131,57 @@ def vectorize_article(blogId,vectorizer):
 
     update = blogs.update_one({'blogId': blogId}, {"$set": {'vector':data_dict}},True)
     # print(update)
-    result = {"vector":embed_query.toarray()[0]}
-    # print(json_util.dumps(result))
+    return
+
+def extract_best_indices(m, topk, mask=None):
+    """
+    Use sum of the cosine distance over all tokens ans return best mathes.
+    m (np.array): cos matrix of shape (nb_in_tokens, nb_dict_tokens)
+    topk (int): number of indices to return (from high to lowest in order)
+    """
+    # return the sum on all tokens of cosinus for each sentence
+    if len(m.shape) > 1:
+        cos_sim = np.mean(m, axis=0) 
+    else: 
+        cos_sim = m
+    index = np.argsort(cos_sim)[::-1] # from highest idx to smallest score 
+    if mask is not None:
+        assert mask.shape == m.shape
+        mask = mask[index]
+    else:
+        mask = np.ones(len(cos_sim))
+    mask = np.logical_or(cos_sim[index] != 0, mask) #eliminate 0 cosine distance
+    best_index = index[mask][:topk]  
+    return best_index
+
+
+
+def sparse_article(blogId):
+    db = get_database()
+    blogs = db['blogs']
+    articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector": 1,"title":1}))
+
+    sparse_matrices=[]
+    for article in articles:
+       article["sparse"] = csr_matrix(((article["vector"])["data"], (article["vector"])["indices"], (article["vector"])["indptr"]), shape=(article["vector"])["shape"])
+       del article['vector']
+       del article['_id']
+       sparse_matrices.append(article["sparse"])
+    
+
+    current_article = blogs.find_one({ "blogId": blogId},{ "blogId":1,"vector": 1,"title":1})
+
+    vector = current_article["vector"]
+    current_sparse = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
+    df = pd.DataFrame(articles)
+    # print(vstack(sparse_matrices))
+    print(type(current_sparse))
+    mat = cosine_similarity(current_sparse, vstack(sparse_matrices))
+    best_index = extract_best_indices(mat, topk=5)
+    print(df[['blogId','title']].iloc[best_index])
+    # vector = article["vector"]
+    # embed_query = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
+    # print(embed_query)
     return
 
 
@@ -148,8 +197,13 @@ file.close()
 
 if __name__ == "__main__":
     try:
-        blogId = sys.argv[1]
-        vectorize_article(blogId,tfidf_mat)
+        if sys.argv[1]=="vectorize":  
+          blogId = sys.argv[2]
+          vectorize_article(blogId,tfidf_mat)
+        elif sys.argv[1]=="sparse": 
+           blogId = sys.argv[2]
+           sparse_article(blogId)
+        
     except Exception as e:
         print(e)
 

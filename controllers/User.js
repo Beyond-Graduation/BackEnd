@@ -224,7 +224,7 @@ router.post("/python", async(req, res) => {
         // resultData = JSON.parse(resultString);
         // console.log(resultData);
         // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-        console.log(resultData);
+        console.log(resultString);
         // res.json(resultData)
 
     });

@@ -131,7 +131,7 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
         // resultData = JSON.parse(resultString);
         // console.log(resultData);
         // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-        console.log(resultData);
+        console.log(resultString);
         // res.json(resultData)
 
     });
@@ -168,7 +168,7 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
                 // resultData = JSON.parse(resultString);
                 // console.log(resultData);
                 // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-                console.log(resultData);
+                console.log(resultString);
                 // res.json(resultData)
 
             });
@@ -320,9 +320,9 @@ router.delete("/deleteBlog", isAlumniLoggedIn, async(req, res) => {
     await User.updateMany({ bookmarkBlog: req.body.blogId }, { $pull: { bookmarkBlog: req.body.blogId } });
     await User.updateMany({ likedBlogs: req.body.blogId }, { $pull: { likedBlogs: req.body.blogId } });
     await Blog.remove({ blogId: req.body.blogId });
-    var peopleLiked = await User.find({ likedBlogs: req.body.blogId }).lean();
+    // var peopleLiked = await User.find({ likedBlogs: req.body.blogId }).lean();
 
-    res.json(peopleLiked);
+    res.send("Blog Deleted");
 });
 
 module.exports = router;
