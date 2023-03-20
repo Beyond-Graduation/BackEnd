@@ -19,6 +19,7 @@ import re
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
+from scipy.sparse import csr_matrix
 
 import requests
 from bs4 import BeautifulSoup
@@ -120,9 +121,18 @@ def vectorize_article(blogId,vectorizer):
     
     tokens_query = " ".join(tokenizer(input_article))
     embed_query = vectorizer.transform([tokens_query])
-    
-    result = {"tf_idf_vector":embed_query.toarray()}
-    print(json_util.dumps(result))
+    data_dict = {
+        'data': embed_query.data.tolist(),
+        'indices': embed_query.indices.tolist(),
+        'indptr': embed_query.indptr.tolist(),
+        'shape': embed_query.shape
+    }
+
+
+    update = blogs.update_one({'blogId': blogId}, {"$set": {'vector':data_dict}},True)
+    # print(update)
+    result = {"vector":embed_query.toarray()[0]}
+    # print(json_util.dumps(result))
     return
 
 

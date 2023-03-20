@@ -106,11 +106,37 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
     req.body.firstName = user.firstName;
     req.body.lastName = user.lastName;
     //create new todo and send it in response
-    res.json(
-        await Blog.create(req.body).catch((error) =>
-            res.status(400).json({ error })
-        )
+    let blog = await Blog.create(req.body).catch((error) =>
+        res.status(400).json({ error })
     );
+
+
+    var spawn = require('child_process').spawn;
+    var process = spawn('python', ['./python_scripts/script.py',
+        blog.blogId
+    ]);
+
+    let resultString = '';
+    let resultData = {};
+    // As the stdout data stream is chunked,
+    // we need to concat all the chunks.
+    process.stdout.on('data', function(stdData) {
+        resultString += stdData.toString();
+    });
+
+    process.stdout.on('end', async function() {
+
+        // Parse the string as JSON when stdout
+        // data stream ends
+        // resultData = JSON.parse(resultString);
+        // console.log(resultData);
+        // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+        console.log(resultData);
+        // res.json(resultData)
+
+    });
+    res.send("Created");
+
 });
 
 router.post("/update", isAlumniLoggedIn, async(req, res) => {
@@ -120,10 +146,35 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         // check if the user exists
         var blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
         req.body.dateModified = Date.now();
-        if (blog || blog.userId == curUserId) {
+        if (blog && blog.userId == curUserId) {
             blog = await Blog.updateOne({ blogId: req.body.blogId }, req.body);
+            var spawn = require('child_process').spawn;
+            var process = spawn('python', ['./python_scripts/script.py',
+                req.body.blogId
+            ]);
+
+            let resultString = '';
+            let resultData = {};
+            // As the stdout data stream is chunked,
+            // we need to concat all the chunks.
+            process.stdout.on('data', function(stdData) {
+                resultString += stdData.toString();
+            });
+
+            process.stdout.on('end', async function() {
+
+                // Parse the string as JSON when stdout
+                // data stream ends
+                // resultData = JSON.parse(resultString);
+                // console.log(resultData);
+                // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+                console.log(resultData);
+                // res.json(resultData)
+
+            });
             console.log(blog);
-            res.json(blog);
+            res.send("Created");
+
         } else {
             res.status(400).json({
                 error: "Blog doesn't exist or is not published by the Current user ",

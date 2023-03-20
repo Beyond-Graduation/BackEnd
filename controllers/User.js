@@ -190,29 +190,45 @@ router.post("/reset_password", async(req, res) => {
     }
 });
 
+router.get("/getDetails/:userId", isLoggedIn, async(req, res) => {
+    const { User } = req.context.models;
+    if (req.params.userId) {
+        var curUserId = req.params.userId;
+        res.json(
+            await User.findOne({ userId: curUserId }).catch((error) =>
+                res.status(400).json({ error })
+            )
+        );
+    }
+});
+
 router.post("/python", async(req, res) => {
+    const { Blog } = req.context.models;
     var spawn = require('child_process').spawn;
     var process = spawn('python', ['./python_scripts/script.py',
         req.body.blogId
     ]);
 
     let resultString = '';
-
+    let resultData = {};
     // As the stdout data stream is chunked,
     // we need to concat all the chunks.
     process.stdout.on('data', function(stdData) {
-        console.log(stdData);
         resultString += stdData.toString();
     });
 
-    console.log(resultString);
-    process.stdout.on('end', function() {
+    process.stdout.on('end', async function() {
 
         // Parse the string as JSON when stdout
         // data stream ends
-        let resultData = JSON.parse(resultString);
-        res.json(resultData)
+        // resultData = JSON.parse(resultString);
+        // console.log(resultData);
+        // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+        console.log(resultData);
+        // res.json(resultData)
+
     });
+
 
 });
 

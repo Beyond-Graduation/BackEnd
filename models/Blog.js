@@ -1,5 +1,12 @@
 const { Schema, model } = require("../db/connection") // import Schema & model
 
+const VectorSchema = new Schema({
+    data: [Number],
+    indices: [Number],
+    indptr: [Number],
+    shape: [Number]
+})
+
 // Blog Schema
 const BlogSchema = new Schema({
     blogId: { type: String, required: true, unique: true },
@@ -14,7 +21,8 @@ const BlogSchema = new Schema({
     dateModified: { type: Date, required: true, default: Date.now() },
     imagePath: { type: String },
     likes: { type: Number, min: 0, default: 0 },
-    clicks: { type: Number, min: 0, default: 0 }
+    clicks: { type: Number, min: 0, default: 0 },
+    vector: { type: VectorSchema }
 })
 
 // Blog model
