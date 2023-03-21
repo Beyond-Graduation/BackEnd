@@ -130,7 +130,7 @@ def vectorize_article(blogId,vectorizer):
 
 
     update = blogs.update_one({'blogId': blogId}, {"$set": {'vector':data_dict}},True)
-    # print(update)
+    print(update)
     return
 
 def extract_best_indices(m, topk, mask=None):
@@ -156,7 +156,7 @@ def extract_best_indices(m, topk, mask=None):
 
 
 
-def sparse_article(blogId):
+def related_articles(blogId):
     db = get_database()
     blogs = db['blogs']
     articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector": 1,"title":1}))
@@ -175,9 +175,9 @@ def sparse_article(blogId):
     current_sparse = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
     df = pd.DataFrame(articles)
     # print(vstack(sparse_matrices))
-    print(type(current_sparse))
+    print("Current Article :",current_article["title"])
     mat = cosine_similarity(current_sparse, vstack(sparse_matrices))
-    best_index = extract_best_indices(mat, topk=5)
+    best_index = extract_best_indices(mat, topk=8)
     print(df[['blogId','title']].iloc[best_index])
     # vector = article["vector"]
     # embed_query = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
@@ -198,19 +198,11 @@ file.close()
 if __name__ == "__main__":
     try:
         if sys.argv[1]=="vectorize":  
-          blogId = sys.argv[2]
-          vectorize_article(blogId,tfidf_mat)
-        elif sys.argv[1]=="sparse": 
            blogId = sys.argv[2]
-           sparse_article(blogId)
+           vectorize_article(blogId,tfidf_mat)
+        elif sys.argv[1]=="related": 
+           blogId = sys.argv[2]
+           related_articles(blogId)
         
     except Exception as e:
         print(e)
-
-    # db = get_database()
-    # users = db['users']
-    # item_details = users.find()
-    # for item in item_details:
-    #     for key in item:
-    #         print(key," : ",item[key])
-    #     print("\n")

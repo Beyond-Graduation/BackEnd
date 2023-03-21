@@ -112,7 +112,8 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
 
 
     var spawn = require('child_process').spawn;
-    var process = spawn('python', ['./python_scripts/script.py',
+    var process = spawn('python3', ['./python_scripts/script.py',
+        "vectorize",
         blog.blogId
     ]);
 
@@ -149,8 +150,9 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         if (blog && blog.userId == curUserId) {
             blog = await Blog.updateOne({ blogId: req.body.blogId }, req.body);
             var spawn = require('child_process').spawn;
-            var process = spawn('python', ['./python_scripts/script.py',
-                req.body.blogId
+            var process = spawn('python3', ['./python_scripts/script.py',
+                "vectorize",
+                blog.blogId
             ]);
 
             let resultString = '';
