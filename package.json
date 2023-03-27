@@ -24,6 +24,7 @@
         "multer": "^1.4.5-lts.1",
         "node-fetch": "^2.6.1",
         "nodemailer": "^6.8.0",
+        "nodemon": "^2.0.21",
         "upload": "^1.1.1"
     }
 }
