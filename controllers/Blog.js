@@ -14,7 +14,7 @@ router.get("/", isLoggedIn, async(req, res) => {
     if (req.query.blogId) {
         var curBlogId = req.query.blogId;
 
-        var blog = await Blog.findOne({ blogId: curBlogId })
+        var blog = await Blog.findOne({ blogId: curBlogId }, { vector: 0 })
             .lean()
             .catch((error) => res.status(400).json({ error }));
         const curUserId = req.user.userId;
@@ -33,11 +33,9 @@ router.get("/", isLoggedIn, async(req, res) => {
 
         // Updating Clicks of each blog
         if (visitedUser) {
-            console.log(visitedUser.blogClicks);
             blogIndex = visitedUser.blogClicks.findIndex((obj => obj.blogId == req.query.blogId));
             visitedUser.blogClicks[blogIndex].count++;
             visitedUser.blogClicks[blogIndex].lastClick = Date.now();
-            console.log(visitedUser.blogClicks);
             await User.updateOne({ userId: curUserId }, { blogClicks: visitedUser.blogClicks });
         } else {
             visitedUser = await User.findOne({ userId: curUserId }).lean();
@@ -45,10 +43,12 @@ router.get("/", isLoggedIn, async(req, res) => {
             await User.updateOne({ userId: curUserId }, { blogClicks: visitedUser.blogClicks });
         }
 
-        // Increasing Blog click count
 
         await Blog.updateOne({ blogId: req.query.blogId }, { $inc: { clicks: 1 } });
         res.json(blog);
+        // Increasing Blog click count
+
+
     } else if (req.query.sort == "blogname") {
         res.json(
             // title:1 => ascending
@@ -96,6 +96,37 @@ router.get("/", isLoggedIn, async(req, res) => {
     }
 });
 
+// Route to get related articles
+router.get("/recommend", isLoggedIn, async(req, res) => {
+    const { Blog } = req.context.models;
+    const { User } = req.context.models;
+
+    var spawn = require('child_process').spawn;
+    var process = spawn('python3', ['./python_scripts/script.py',
+        "related",
+        req.query.blogId
+    ]);
+
+    let relatedArticles = [];
+    let resultString = '';
+
+    process.stdout.on('data', function(stdData) {
+        resultString += stdData.toString();
+    });
+
+    process.stdout.on('end', async function() {
+
+        // Parse the string as JSON when stdout
+        // data stream ends
+        relatedArticles = JSON.parse(resultString);
+        console.log(relatedArticles);
+        res.json({
+            relatedArticles: relatedArticles
+        });
+        // res.json(resultData)
+
+    });
+});
 // create Route with isLoggedIn middleware
 router.post("/create", isAlumniLoggedIn, async(req, res) => {
     const { Blog } = req.context.models;

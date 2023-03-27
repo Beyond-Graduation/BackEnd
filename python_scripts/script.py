@@ -41,6 +41,39 @@ PATTERN_S = re.compile("\'s")  # matches `'s` from text
 PATTERN_RN = re.compile("\\r\\n") #matches `\r` and `\n`
 PATTERN_PUNC = re.compile(r"[^\w\s]") # matches all non 0-9 A-z whitespace 
 
+
+# Pipeline to sort Blog Results in the order of Recommendation
+
+def get_pipeline(blog_ids):
+    pipeline = [
+        {
+            '$match': {
+                'blogId': {'$in': blog_ids}
+            }
+        },
+        {
+            '$addFields': {
+                '__order': {
+                    '$indexOfArray': [blog_ids, '$blogId']
+                }
+            }
+        },
+        {
+            '$sort': {
+                '__order': 1
+            }
+        },
+        {
+            '$unset': '__order'
+        },
+        {
+        '$project': {
+            'vector': 0  # Exclude the 'vector' field
+            }
+        }
+    ]
+    return pipeline
+
 # Basic Python Script to establish MongoDB Connection
 
 def get_database():
@@ -175,10 +208,15 @@ def related_articles(blogId):
     current_sparse = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
     df = pd.DataFrame(articles)
     # print(vstack(sparse_matrices))
-    print("Current Article :",current_article["title"])
-    mat = cosine_similarity(current_sparse, vstack(sparse_matrices))
-    best_index = extract_best_indices(mat, topk=8)
-    print(df[['blogId','title']].iloc[best_index])
+    # print("Current Article :",current_article["title"])
+    similarity_mat = cosine_similarity(current_sparse, vstack(sparse_matrices))
+    df['similairity']=(similarity_mat[0])
+    best_index = extract_best_indices(similarity_mat, topk=3)
+    # print(df[['blogId','title','similairity']].iloc[best_index])
+    pipeline = get_pipeline(df['blogId'].iloc[best_index].values.tolist())
+    recommended_articles = [blog for blog in blogs.aggregate(pipeline)]
+    recommended_articles_json = json.dumps(recommended_articles, default=json_util.default)
+    print(recommended_articles_json)
     # vector = article["vector"]
     # embed_query = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
     # print(embed_query)
