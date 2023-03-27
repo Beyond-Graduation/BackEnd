@@ -14,7 +14,7 @@ router.get("/", isLoggedIn, async(req, res) => {
     if (req.query.blogId) {
         var curBlogId = req.query.blogId;
 
-        var blog = await Blog.findOne({ blogId: curBlogId })
+        var blog = await Blog.findOne({ blogId: curBlogId }, { vector: 0 })
             .lean()
             .catch((error) => res.status(400).json({ error }));
         const curUserId = req.user.userId;
@@ -33,11 +33,9 @@ router.get("/", isLoggedIn, async(req, res) => {
 
         // Updating Clicks of each blog
         if (visitedUser) {
-            console.log(visitedUser.blogClicks);
             blogIndex = visitedUser.blogClicks.findIndex((obj => obj.blogId == req.query.blogId));
             visitedUser.blogClicks[blogIndex].count++;
             visitedUser.blogClicks[blogIndex].lastClick = Date.now();
-            console.log(visitedUser.blogClicks);
             await User.updateOne({ userId: curUserId }, { blogClicks: visitedUser.blogClicks });
         } else {
             visitedUser = await User.findOne({ userId: curUserId }).lean();
@@ -45,10 +43,12 @@ router.get("/", isLoggedIn, async(req, res) => {
             await User.updateOne({ userId: curUserId }, { blogClicks: visitedUser.blogClicks });
         }
 
-        // Increasing Blog click count
 
         await Blog.updateOne({ blogId: req.query.blogId }, { $inc: { clicks: 1 } });
         res.json(blog);
+        // Increasing Blog click count
+
+
     } else if (req.query.sort == "blogname") {
         res.json(
             // title:1 => ascending
@@ -96,6 +96,37 @@ router.get("/", isLoggedIn, async(req, res) => {
     }
 });
 
+// Route to get related articles
+router.get("/recommend", isLoggedIn, async(req, res) => {
+    const { Blog } = req.context.models;
+    const { User } = req.context.models;
+
+    var spawn = require('child_process').spawn;
+    var process = spawn('python3', ['./python_scripts/script.py',
+        "related",
+        req.query.blogId
+    ]);
+
+    let relatedArticles = [];
+    let resultString = '';
+
+    process.stdout.on('data', function(stdData) {
+        resultString += stdData.toString();
+    });
+
+    process.stdout.on('end', async function() {
+
+        // Parse the string as JSON when stdout
+        // data stream ends
+        relatedArticles = JSON.parse(resultString);
+        console.log(relatedArticles);
+        res.json({
+            relatedArticles: relatedArticles
+        });
+        // res.json(resultData)
+
+    });
+});
 // create Route with isLoggedIn middleware
 router.post("/create", isAlumniLoggedIn, async(req, res) => {
     const { Blog } = req.context.models;
@@ -106,11 +137,38 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
     req.body.firstName = user.firstName;
     req.body.lastName = user.lastName;
     //create new todo and send it in response
-    res.json(
-        await Blog.create(req.body).catch((error) =>
-            res.status(400).json({ error })
-        )
+    let blog = await Blog.create(req.body).catch((error) =>
+        res.status(400).json({ error })
     );
+
+
+    var spawn = require('child_process').spawn;
+    var process = spawn('python3', ['./python_scripts/script.py',
+        "vectorize",
+        blog.blogId
+    ]);
+
+    let resultString = '';
+    let resultData = {};
+    // As the stdout data stream is chunked,
+    // we need to concat all the chunks.
+    process.stdout.on('data', function(stdData) {
+        resultString += stdData.toString();
+    });
+
+    process.stdout.on('end', async function() {
+
+        // Parse the string as JSON when stdout
+        // data stream ends
+        // resultData = JSON.parse(resultString);
+        // console.log(resultData);
+        // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+        console.log(resultString);
+        // res.json(resultData)
+
+    });
+    res.send("Created");
+
 });
 
 router.post("/update", isAlumniLoggedIn, async(req, res) => {
@@ -120,10 +178,36 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         // check if the user exists
         var blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
         req.body.dateModified = Date.now();
-        if (blog || blog.userId == curUserId) {
+        if (blog && blog.userId == curUserId) {
             blog = await Blog.updateOne({ blogId: req.body.blogId }, req.body);
+            var spawn = require('child_process').spawn;
+            var process = spawn('python3', ['./python_scripts/script.py',
+                "vectorize",
+                blog.blogId
+            ]);
+
+            let resultString = '';
+            let resultData = {};
+            // As the stdout data stream is chunked,
+            // we need to concat all the chunks.
+            process.stdout.on('data', function(stdData) {
+                resultString += stdData.toString();
+            });
+
+            process.stdout.on('end', async function() {
+
+                // Parse the string as JSON when stdout
+                // data stream ends
+                // resultData = JSON.parse(resultString);
+                // console.log(resultData);
+                // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+                console.log(resultString);
+                // res.json(resultData)
+
+            });
             console.log(blog);
-            res.json(blog);
+            res.send("Created");
+
         } else {
             res.status(400).json({
                 error: "Blog doesn't exist or is not published by the Current user ",
@@ -269,9 +353,9 @@ router.delete("/deleteBlog", isAlumniLoggedIn, async(req, res) => {
     await User.updateMany({ bookmarkBlog: req.body.blogId }, { $pull: { bookmarkBlog: req.body.blogId } });
     await User.updateMany({ likedBlogs: req.body.blogId }, { $pull: { likedBlogs: req.body.blogId } });
     await Blog.remove({ blogId: req.body.blogId });
-    var peopleLiked = await User.find({ likedBlogs: req.body.blogId }).lean();
+    // var peopleLiked = await User.find({ likedBlogs: req.body.blogId }).lean();
 
-    res.json(peopleLiked);
+    res.send("Blog Deleted");
 });
 
 module.exports = router;
