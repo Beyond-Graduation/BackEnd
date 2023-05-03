@@ -22,7 +22,8 @@ const BlogSchema = new Schema({
     imagePath: { type: String },
     likes: { type: Number, min: 0, default: 0 },
     clicks: { type: Number, min: 0, default: 0 },
-    vector: { type: VectorSchema }
+    vector: { type: VectorSchema },
+    vector_embedding: [Number]
 })
 
 // Blog model

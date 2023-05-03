@@ -229,11 +229,40 @@ router.get("/stats", isAdminLoggedIn, async(req, res) => {
 
 router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
     const { Blog } = req.context.models;
-    res.json(
-        await Blog.updateMany({}, { clicks: 0 }).catch((error) =>
-            res.status(400).json({ error })
-        )
-    )
+    const { User } = req.context.models;
+
+    var blogs = await Blog.find().lean();
+    for (let i = 0; i < blogs.length; i++) {
+        let blog = blogs[i];
+        var spawn = require('child_process').spawn;
+        var process = spawn('python3', ['./python_scripts/script.py',
+            "vectorize",
+            blog.blogId
+        ]);
+        let resultString = '';
+        let resultData = {};
+        // As the stdout data stream is chunked,
+        // we need to concat all the chunks.
+        process.stdout.on('data', function(stdData) {
+            resultString += stdData.toString();
+        });
+
+        process.stdout.on('end', async function() {
+
+            // Parse the string as JSON when stdout
+            // data stream ends
+            // resultData = JSON.parse(resultString);
+            // console.log(resultData);
+            // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
+            console.log(resultString);
+            // res.json(resultData)
+
+        });
+
+    }
+
+
+    res.send("Updated");
 });
 
 
