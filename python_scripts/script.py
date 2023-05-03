@@ -18,6 +18,8 @@ import re
 
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 from scipy.sparse import csr_matrix,vstack
 
@@ -143,7 +145,7 @@ def tokenizer(sentence, min_words=MIN_WORDS, max_words=MAX_WORDS, stopwords=STOP
 
 
 
-def vectorize_article(blogId,vectorizer):
+def vectorize_article(blogId,vectorizer,tfidf_scaler,tsvd_reducer):
     db = get_database()
     blogs = db['blogs']
     article = blogs.find_one({'blogId': blogId})
@@ -151,18 +153,12 @@ def vectorize_article(blogId,vectorizer):
     input_article = soup.get_text()
     input_article = clean_text(input_article)
     # Embed the query sentence
-    
     tokens_query = " ".join(tokenizer(input_article))
     embed_query = vectorizer.transform([tokens_query])
-    data_dict = {
-        'data': embed_query.data.tolist(),
-        'indices': embed_query.indices.tolist(),
-        'indptr': embed_query.indptr.tolist(),
-        'shape': embed_query.shape
-    }
+    scaled_tfidf = tfidf_scaler.transform(embed_query)
+    reduced_query = (tsvd_reducer.transform(scaled_tfidf))[0].tolist()
 
-
-    update = blogs.update_one({'blogId': blogId}, {"$set": {'vector':data_dict}},True)
+    update = blogs.update_one({'blogId': blogId}, {"$set": {'vector_embedding':reduced_query}},True)
     print(update)
     return
 
@@ -192,26 +188,23 @@ def extract_best_indices(m, topk, mask=None):
 def related_articles(blogId):
     db = get_database()
     blogs = db['blogs']
-    articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector": 1,"title":1}))
+    articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector_embedding": 1,"title":1}))
 
-    sparse_matrices=[]
+    article_embeddings=[]
     for article in articles:
-       article["sparse"] = csr_matrix(((article["vector"])["data"], (article["vector"])["indices"], (article["vector"])["indptr"]), shape=(article["vector"])["shape"])
-       del article['vector']
-       del article['_id']
-       sparse_matrices.append(article["sparse"])
+       article_embeddings.append(article["vector_embedding"])
     
 
-    current_article = blogs.find_one({ "blogId": blogId},{ "blogId":1,"vector": 1,"title":1})
+    current_article = blogs.find_one({ "blogId": blogId},{ "blogId":1,"vector_embedding": 1,"title":1})
 
-    vector = current_article["vector"]
-    current_sparse = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
+    current_article_embedding = [current_article["vector_embedding"]]
+
     df = pd.DataFrame(articles)
     # print(vstack(sparse_matrices))
     # print("Current Article :",current_article["title"])
-    similarity_mat = cosine_similarity(current_sparse, vstack(sparse_matrices))
+    similarity_mat = cosine_similarity(np.array(current_article_embedding), np.array(article_embeddings))
     df['similairity']=(similarity_mat[0])
-    best_index = extract_best_indices(similarity_mat, topk=3)
+    best_index = extract_best_indices(similarity_mat, topk=5)
     # print(df[['blogId','title','similairity']].iloc[best_index])
     pipeline = get_pipeline(df['blogId'].iloc[best_index].values.tolist())
     recommended_articles = [blog for blog in blogs.aggregate(pipeline)]
@@ -226,18 +219,28 @@ def related_articles(blogId):
 
 # Load TfIdf vector object
 try:
-  file = open('./python_scripts/Vectorization/tfidf_medium.pickle', 'rb')
+    tf_idf_file = open('./python_scripts/Vectorization/tfidf_medium.pickle', 'rb')
+    scaler_file = open('./python_scripts/Vectorization/tfidf_scaler.pkl', 'rb')
+    tsvd_reducer_file = open('./python_scripts/Vectorization/tsvd_reducer.pkl', 'rb')
 except:
-   file = open('./Vectorization/tfidf_medium.pickle', 'rb')
-tfidf_mat = pickle.load(file)
-file.close()
+    tf_idf_file = open('./Vectorization/tfidf_medium.pickle', 'rb')
+    scaler_file = open('./Vectorization/tfidf_scaler.pkl', 'rb')
+    tsvd_reducer_file = open('./Vectorization/tsvd_reducer.pkl', 'rb')
+
+
+tfidf_mat = pickle.load(tf_idf_file)
+tf_idf_file.close()
+tfidf_scaler = pickle.load(scaler_file)
+scaler_file.close()
+tsvd_reducer = pickle.load(tsvd_reducer_file)
+tsvd_reducer_file.close()
 
 
 if __name__ == "__main__":
     try:
         if sys.argv[1]=="vectorize":  
            blogId = sys.argv[2]
-           vectorize_article(blogId,tfidf_mat)
+           vectorize_article(blogId,tfidf_mat,tfidf_scaler,tsvd_reducer)
         elif sys.argv[1]=="related": 
            blogId = sys.argv[2]
            related_articles(blogId)
