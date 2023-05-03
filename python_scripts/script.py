@@ -220,12 +220,12 @@ def related_articles(blogId):
 # Load TfIdf vector object
 try:
     tf_idf_file = open('./python_scripts/Vectorization/tfidf_medium.pickle', 'rb')
-    scaler_file = open('./python_scripts/Vectorization/tfidf_scaler.pkl', 'rb')
-    tsvd_reducer_file = open('./python_scripts/Vectorization/tsvd_reducer.pkl', 'rb')
+    scaler_file = open('./python_scripts/Vectorization/tfidf_scaler_250.pkl', 'rb')
+    tsvd_reducer_file = open('./python_scripts/Vectorization/tsvd_reducer_250.pkl', 'rb')
 except:
     tf_idf_file = open('./Vectorization/tfidf_medium.pickle', 'rb')
-    scaler_file = open('./Vectorization/tfidf_scaler.pkl', 'rb')
-    tsvd_reducer_file = open('./Vectorization/tsvd_reducer.pkl', 'rb')
+    scaler_file = open('./Vectorization/tfidf_scaler_250.pkl', 'rb')
+    tsvd_reducer_file = open('./Vectorization/tsvd_reducer_250.pkl', 'rb')
 
 
 tfidf_mat = pickle.load(tf_idf_file)
