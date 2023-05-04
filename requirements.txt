@@ -1,8 +1,10 @@
-pymongo[srv]
+pymongo
 pandas
 scikit-learn
 beautifulsoup4
 clean-text
 numpy
 nltk
-requests
+python-dotenv
+bson
+scipy
