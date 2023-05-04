@@ -6,5 +6,4 @@ clean-text
 numpy
 nltk
 python-dotenv
-bson==3.7.0
 scipy
