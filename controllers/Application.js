@@ -26,9 +26,13 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 //view all application
 router.get("/", isStudentLoggedIn, async(req,res) => {
     const { Application } = req.context.models;
-    const applications = await Application.find().lean()
+    const { Student } = req.context.models;
+    curUserId = req.user.userId;
+    if(Application.studentId == curUserId) {
+    const applications = await Application.find(curUserId).lean()
         .catch((error) => res.status(400).json({ error }));
-    res.json(applications);   
+        res.json(applications);   
+    }
 });
 
 //view a specific application

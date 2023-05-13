@@ -25,20 +25,38 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
 //view all internships
 router.get("/", isLoggedIn, async(req,res) => {
     const { Internship } = req.context.models;
-    const internships = await Internship.find().lean()
+    const internships = await Internship.find().lean().sort({ dateUploaded: -1 })
         .catch((error) => res.status(400).json({ error }));
     res.json(internships);    
 });
 
-//view a specific internship
-router.get("/view", isLoggedIn, async(req, res) => {
+//to view the applicants
+router.get("/", isAlumniLoggedIn, async(req,res) => {
     const { Internship } = req.context.models;
-    if(req.query.internshipId) {
-        var curInternshipId = req.query.internshipId;
-        var internship = await Internship.findOne({internshipId : curInternshipId}).lean()
-            .catch((error) => res.status(400).json({ error })
-        );
+    const { Application } = req.context.models;
+    const curUserId = req.user.userId;
+    const curInternshipId = req.query.internshipId;
+    try{
+        const internships = await Internship.findById(curInternshipId).lean();
+        const applications = await Application.find({ internshipId: curInternshipId }).lean();
+        if (applications.AlumniId != curUserId) {
+            return res.status(403).send('You are not authorized to view this internship');
+        }      
+        res.json({ internships, applications });
+    } catch (error) {
+        res.status(400).json({ error });
+    }
+});
+
+//view a specific internship
+router.get("/view/:id", isLoggedIn, async(req, res) => {
+    const { Internship } = req.context.models;
+    var curInternshipId = req.params.id;
+    try{        
+        const internship = await Internship.findById({curInternshipId}).lean();
         res.json(internship);
+    } catch (error) {
+        res.status(400).json({ error });
     }
 });
 
@@ -65,8 +83,7 @@ router.post("/close", isAlumniLoggedIn, async(req,res) => {
     } catch (error) {
         res.status(400).json({ error });
     }
-}
-)
+});
 
 // edit the opportunity posted
 router.post("/update", isAlumniLoggedIn, async(req, res) => {
