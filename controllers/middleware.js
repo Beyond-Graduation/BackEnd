@@ -8,10 +8,12 @@ const Alumni = require("../models/Alumni");
 const AlumniPending = require("../models/AlumniPending");
 const Student = require("../models/Student");
 const Admin = require("../models/Admin");
-const Notice = require("../models/Notice")
-const NoticePending = require("../models/NoticePending")
+const Notice = require("../models/Notice");
+const NoticePending = require("../models/NoticePending");
+const Internship = require("../models/Internship");
+const Application = require("../models/Application");
 
-const User = require("../models/User")
+const User = require("../models/User");
 
 // CREATE CONTEXT MIDDLEWARE
 const createContext = (req, res, next) => {
@@ -26,7 +28,9 @@ const createContext = (req, res, next) => {
       Notice,
       NoticePending,
       BlogComments,
-      User
+      User,
+      Internship,
+      Application
     },
   };
   next();
@@ -119,11 +123,39 @@ const isAlumniLoggedIn = async (req, res, next) => {
 };
 
 
+const isStudentLoggedIn = async (req, res, next) => {
+  try {
+    // check if auth header exists
+    if (req.headers.authorization) {
+      // parse token from header
+      const token = req.headers.authorization.split(" ")[1]; //split the header and get the token
+      if (token) {
+        const payload = await jwt.verify(token, process.env.SECRET);
+        // console.log(payload)
+        if (payload.userType=="Student") {
+          console.log("Student Login Success");
+          // store user data in request object
+          req.user = payload;
+          next();
+        } else {
+          res.status(400).json({ error: "token verification failed" });
+        }
+      } else {
+        res.status(400).json({ error: "malformed auth header" });
+      }
+    } else {
+      res.status(400).json({ error: "No authorization header" });
+    }
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+};
 
 // export custom middleware
 module.exports = {
   isLoggedIn,
   isAlumniLoggedIn,
   isAdminLoggedIn,
+  isStudentLoggedIn,
   createContext
 };
