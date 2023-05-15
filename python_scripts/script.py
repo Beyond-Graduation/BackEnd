@@ -5,11 +5,32 @@ load_dotenv()
 import sys
 import pandas as pd
 
+
 import nltk
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
+# import nltk
+# from nltk.data import find
+
+# # List of resources to download if not already present
+# resources = [
+#     ('stopwords', 'corpora/stopwords')]
+# #     ('punkt', 'tokenizers/punkt')]
+# # #     ('wordnet', 'corpora/wordnet'),
+# # #     ('omw-1.4', 'corpora/omw/omw')
+# # # ]
+
+# # Check if each resource is present, and download if not
+# for resource_name, resource_path in resources:
+#     try:
+#         find(resource_path)
+#     except:
+#         print("Downloading ",resource_name)
+#         nltk.download(resource_name)
+#         print("Download Completed")
 
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -70,7 +91,8 @@ def get_pipeline(blog_ids):
         },
         {
         '$project': {
-            'vector': 0  # Exclude the 'vector' field
+            'vector_embedding': 0,
+            'vector':0  # Exclude the 'vector' field
             }
         }
     ]
@@ -189,12 +211,10 @@ def related_articles(blogId):
     db = get_database()
     blogs = db['blogs']
     articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector_embedding": 1,"title":1}))
-
     article_embeddings=[]
     for article in articles:
        article_embeddings.append(article["vector_embedding"])
     
-
     current_article = blogs.find_one({ "blogId": blogId},{ "blogId":1,"vector_embedding": 1,"title":1})
 
     current_article_embedding = [current_article["vector_embedding"]]
@@ -205,7 +225,6 @@ def related_articles(blogId):
     similarity_mat = cosine_similarity(np.array(current_article_embedding), np.array(article_embeddings))
     df['similairity']=(similarity_mat[0])
     best_index = extract_best_indices(similarity_mat, topk=5)
-    # print(df[['blogId','title','similairity']].iloc[best_index])
     pipeline = get_pipeline(df['blogId'].iloc[best_index].values.tolist())
     recommended_articles = [blog for blog in blogs.aggregate(pipeline)]
     recommended_articles_json = json.dumps(recommended_articles, default=json_util.default)
