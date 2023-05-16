@@ -4,33 +4,37 @@ from dotenv import load_dotenv
 load_dotenv()
 import sys
 import pandas as pd
-
-
-import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+import time
+import unidecode 
 
 # import nltk
 # from nltk.data import find
+# nltk.download('stopwords')
+# nltk.download('punkt')
+# nltk.download('wordnet')
+# nltk.download('omw-1.4')
 
-# # List of resources to download if not already present
-# resources = [
-#     ('stopwords', 'corpora/stopwords')]
-# #     ('punkt', 'tokenizers/punkt')]
-# # #     ('wordnet', 'corpora/wordnet'),
-# # #     ('omw-1.4', 'corpora/omw/omw')
-# # # ]
+import nltk
+from nltk.data import find
 
-# # Check if each resource is present, and download if not
-# for resource_name, resource_path in resources:
-#     try:
-#         find(resource_path)
-#     except:
-#         print("Downloading ",resource_name)
-#         nltk.download(resource_name)
-#         print("Download Completed")
+
+# List of resources to download if not already present
+resources = [
+    ('stopwords', 'corpora/stopwords'),
+    ('punkt', 'tokenizers/punkt')]
+#     ('wordnet', 'corpora/wordnet'),
+#     ('omw-1.4', 'corpora/omw/omw')
+# ]
+
+# Check if each resource is present, and download if not
+for resource_name, resource_path in resources:
+    try:
+        find(resource_path)
+        # print("Found", resource_name)
+    except:
+        # print("Downloading ",resource_name)
+        nltk.download(resource_name)
+        # print("Download Completed")
 
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -192,17 +196,17 @@ def extract_best_indices(m, topk, mask=None):
     """
     # return the sum on all tokens of cosinus for each sentence
     if len(m.shape) > 1:
-        cos_sim = np.mean(m, axis=0) 
-    else: 
+        cos_sim = np.mean(m, axis=0)
+    else:
         cos_sim = m
-    index = np.argsort(cos_sim)[::-1] # from highest idx to smallest score 
+    index = np.argsort(cos_sim)[::-1]  # from highest idx to smallest score
     if mask is not None:
-        assert mask.shape == m.shape
+        assert mask.shape == cos_sim.shape
         mask = mask[index]
     else:
         mask = np.ones(len(cos_sim))
-    mask = np.logical_or(cos_sim[index] != 0, mask) #eliminate 0 cosine distance
-    best_index = index[mask][:topk]  
+    mask = np.logical_or(cos_sim[index] != 0, mask)  # eliminate 0 cosine distance
+    best_index = index[mask][:topk]
     return best_index
 
 
@@ -211,27 +215,28 @@ def related_articles(blogId):
     db = get_database()
     blogs = db['blogs']
     articles = list(blogs.find({ "blogId": { "$nin": [blogId] }},{ "blogId":1,"vector_embedding": 1,"title":1}))
-    article_embeddings=[]
-    for article in articles:
-       article_embeddings.append(article["vector_embedding"])
-    
+
+    article_embeddings = np.array([article["vector_embedding"] for article in articles])    
     current_article = blogs.find_one({ "blogId": blogId},{ "blogId":1,"vector_embedding": 1,"title":1})
 
     current_article_embedding = [current_article["vector_embedding"]]
 
+     # Reshape current article embedding to match the number of rows in article_embeddings
+    current_article_embedding_batch = np.tile(current_article_embedding, (len(articles), 1))
+
     df = pd.DataFrame(articles)
-    # print(vstack(sparse_matrices))
-    # print("Current Article :",current_article["title"])
-    similarity_mat = cosine_similarity(np.array(current_article_embedding), np.array(article_embeddings))
+    # Calculate cosine similarity using batch processing
+    similarity_mat = cosine_similarity(current_article_embedding_batch, article_embeddings)
     df['similairity']=(similarity_mat[0])
     best_index = extract_best_indices(similarity_mat, topk=5)
+    # print(df[['blogId','title','similairity']].iloc[best_index])
+    
     pipeline = get_pipeline(df['blogId'].iloc[best_index].values.tolist())
     recommended_articles = [blog for blog in blogs.aggregate(pipeline)]
     recommended_articles_json = json.dumps(recommended_articles, default=json_util.default)
+
+    # This is the part to be sent as output 
     print(recommended_articles_json)
-    # vector = article["vector"]
-    # embed_query = csr_matrix((vector["data"], vector["indices"], vector["indptr"]), shape=vector["shape"])
-    # print(embed_query)
     return
 
 
@@ -254,6 +259,7 @@ scaler_file.close()
 tsvd_reducer = pickle.load(tsvd_reducer_file)
 tsvd_reducer_file.close()
 
+gt = time.time()
 
 if __name__ == "__main__":
     try:

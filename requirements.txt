@@ -8,3 +8,4 @@ nltk
 python-dotenv
 scipy
 requests
+unidecode
