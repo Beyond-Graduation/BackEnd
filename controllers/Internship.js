@@ -2,8 +2,7 @@ const { Router } = require("express"); // import Router from express
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isStudentLoggedIn } = require("./middleware"); // import isStudentLoggedIn custom middleware
-const Internship = require("../models/Internship");
-const Application = require("../models/Application");
+
 
 const router = Router();
 
@@ -158,15 +157,14 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
         internshipId: req.body.internshipId,
     }).lean();
 
-    console.log(internship);
     req.body.alumniId = internship.alumniId;
     // pick email,phone number, cgpa from front end
-
-    res.json(
-        await Application.create(req.body).catch((error) =>
-            res.status(400).json({ error })
-        )
-    );
+    try{
+        res.json(await Application.create(req.body));
+    }
+    catch (error) {
+        res.status(400).json({ error });
+      }
 });
 
 // get a students applications
