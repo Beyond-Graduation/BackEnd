@@ -23,7 +23,8 @@ const BlogSchema = new Schema({
     likes: { type: Number, min: 0, default: 0 },
     clicks: { type: Number, min: 0, default: 0 },
     vector: { type: VectorSchema },
-    vector_embedding: [Number]
+    vector_embedding: [Number],
+    vectorEmbedding: [Number]
 })
 
 // Blog model

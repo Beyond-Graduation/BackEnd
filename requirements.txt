@@ -1,11 +1,3 @@
-pymongo
-pandas
-scikit-learn
-beautifulsoup4
-clean-text
-numpy
-nltk
-python-dotenv
-scipy
-requests
-unidecode
+version https://git-lfs.github.com/spec/v1
+oid sha256:9c026ee47c1385d1fd0129ab2bfa12683ba84014e7de1236d1f318f625fa1391
+size 103
