@@ -31,18 +31,49 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
 //view all internships and individual internship with req.query.internshipId
 router.get("/view_internships", isLoggedIn, async(req, res) => {
     const { Internship } = req.context.models;
+    const { Application } = req.context.models;
     if (req.query.internshipId) {
         var internship = await Internship.findOne({
                 internshipId: req.query.internshipId,
             })
             .lean()
             .catch((error) => res.status(400).json({ error }));
+        internship.userType = req.user.userType
+        if (req.user.userType == "Student") {
+            let appliedOrNot = await Application.findOne({
+                internshipId: req.query.internshipId,
+                studentId: req.user.userId
+            }).lean();
+            internship.applied = appliedOrNot ? "applied" : "not applied";
+        }
         res.json(internship);
     } else {
-        const internships = await Internship.find()
+        let internships = await Internship.find()
             .lean()
             .sort({ dateUploaded: -1 })
             .catch((error) => res.status(400).json({ error }));
+
+
+
+        const internshipPromises = internships.map(async(internship) => {
+            internship.userType = req.user.userType;
+
+            if (req.user.userType === "Student") {
+                const appliedOrNot = await Application.findOne({
+                    internshipId: internship.internshipId,
+                    studentId: req.user.userId,
+                }).lean();
+
+                internship.applied = appliedOrNot ? "applied" : "not applied";
+            }
+
+            return internship;
+        });
+
+        internships = await Promise.all(internshipPromises);
+
+
+
         res.json(internships);
     }
 });
@@ -157,14 +188,18 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
         internshipId: req.body.internshipId,
     }).lean();
 
-    req.body.alumniId = internship.alumniId;
-    // pick email,phone number, cgpa from front end
-    try{
-        res.json(await Application.create(req.body));
+    if (internship.status == "open") {
+        req.body.alumniId = internship.alumniId;
+        // pick email,phone number, cgpa from front end
+        try {
+            res.json(await Application.create(req.body));
+        } catch (error) {
+            res.status(400).json({ error });
+        }
+    } else {
+        res.status(400).send("Opportunity is Closed, Can't accept applications!");
     }
-    catch (error) {
-        res.status(400).json({ error });
-      }
+
 });
 
 // get a students applications

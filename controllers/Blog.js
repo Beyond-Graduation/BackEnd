@@ -1,6 +1,14 @@
 const { Router } = require("express"); // import Router from express
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
+const { isAdminLoggedIn } = require("./middleware");
+const { getWord2VecModel } = require('../word2vecLoader');
+const word2vec = require('word2vec');
+const natural = require('natural');
+const tokenizer = new natural.WordTokenizer();
+const stopwords = require('stopwords').english;
+const { htmlToText } = require('html-to-text');
+const cosineSimilarity = require('cosine-similarity');
 
 const router = Router();
 
@@ -96,80 +104,123 @@ router.get("/", isLoggedIn, async(req, res) => {
     }
 });
 
-// Route to get related articles
 router.get("/recommend", isLoggedIn, async(req, res) => {
     const { Blog } = req.context.models;
     const { User } = req.context.models;
+    try {
+        const blogId = req.query.blogId;
+        const currentArticle = await Blog.findOne({ blogId }).select('vectorEmbedding');
 
-    var spawn = require('child_process').spawn;
-    var process = spawn('python3', ['./python_scripts/script.py',
-        "related",
-        req.query.blogId
-    ]);
+        if (!currentArticle) {
+            throw new Error('Current article not found');
+        }
 
-    let relatedArticles = [];
-    let resultString = '';
+        const articles = await Blog.find({ blogId: { $ne: blogId } }).select('blogId title abstract imagePath vectorEmbedding');
 
-    process.stdout.on('data', function(stdData) {
-        resultString += stdData.toString();
-    });
+        // Calculate cosine similarity for all articles
+        const similarities = articles.map(article => ({
+            blogId: article.blogId,
+            title: article.title,
+            abstract: article.abstract,
+            imagePath: article.imagePath,
+            similarity: cosineSimilarity(currentArticle.vectorEmbedding, article.vectorEmbedding)
+        }));
 
-    process.stdout.on('end', async function() {
+        // Sort the articles based on similarity in descending order
+        similarities.sort((a, b) => b.similarity - a.similarity);
 
-        // Parse the string as JSON when stdout
-        // data stream ends
-        relatedArticles = JSON.parse(resultString);
-        console.log(relatedArticles);
-        res.json({
-            relatedArticles: relatedArticles
-        });
-        // res.json(resultData)
+        // Get the top 5 most similar articles
+        const relatedArticles = similarities.slice(0, 5);
 
-    });
+        res.json({ relatedArticles });
+    } catch (error) {
+        console.error('Error in recommend route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
+
+
+// Function to preprocess the text
+function preprocessText(text) {
+    // Tokenization
+    const tokens = tokenizer.tokenize(text);
+
+    // Removing punctuation and converting to lowercase
+    const processedTokens = tokens.map(token => token.replace(/[^\w\s]/gi, '').toLowerCase());
+
+    // Removing stop words
+    const filteredTokens = processedTokens.filter(token => !stopwords.includes(token));
+    return filteredTokens;
+
+}
+
+
+
+// Function to perform Word2Vec embedding using the loaded Word2Vec model
+function performWord2VecEmbedding(content) {
+    const model = getWord2VecModel();
+    if (!model) {
+        throw new Error("Word2Vec model not loaded");
+    }
+    // Convert HTML to plain text
+    const plainTextContent = htmlToText(content);
+
+    // Preprocess the content and split it into individual tokens
+    const tokens = preprocessText(plainTextContent);
+
+    // Initialize the sum embedding vector
+    let sumEmbedding = null;
+
+    // Calculate the sum of embeddings for all tokens
+    let validTokensCount = 0; // Count the number of tokens with valid embeddings
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const embedding = model.getVector(token);
+        if (embedding) {
+            validTokensCount++;
+            if (!sumEmbedding) {
+                sumEmbedding = embedding.values;
+            } else {
+                sumEmbedding = sumEmbedding.map((value, index) => value + embedding.values[index]);
+            }
+        }
+    }
+
+    // Calculate the average embedding
+    const avgEmbedding = sumEmbedding.map((sum) => sum / validTokensCount);
+    return Array.from(avgEmbedding);
+
+}
+
+
+
+
 // create Route with isLoggedIn middleware
 router.post("/create", isAlumniLoggedIn, async(req, res) => {
     const { Blog } = req.context.models;
     const { Alumni } = req.context.models;
     const curUserId = req.user.userId;
-    const user = await Alumni.findOne({ userId: curUserId }).lean(); // get username from req.user property created by isLoggedIn middleware
-    req.body.userId = curUserId; // add userId property to req.body
+    const user = await Alumni.findOne({ userId: curUserId }).lean();
+    req.body.userId = curUserId;
     req.body.firstName = user.firstName;
     req.body.lastName = user.lastName;
-    //create new todo and send it in response
-    let blog = await Blog.create(req.body).catch((error) =>
-        res.status(400).json({ error })
-    );
 
+    try {
+        // Embed the blog content using Word2Vec
+        const vectorEmbedding = await performWord2VecEmbedding(req.body.content);
 
-    var spawn = require('child_process').spawn;
-    var process = spawn('python3', ['./python_scripts/script.py',
-        "vectorize",
-        blog.blogId
-    ]);
+        // Add the embedded vector to the request body
+        req.body.vectorEmbedding = vectorEmbedding;
 
-    let resultString = '';
-    let resultData = {};
-    // As the stdout data stream is chunked,
-    // we need to concat all the chunks.
-    process.stdout.on('data', function(stdData) {
-        resultString += stdData.toString();
-    });
-
-    process.stdout.on('end', async function() {
-
-        // Parse the string as JSON when stdout
-        // data stream ends
-        // resultData = JSON.parse(resultString);
-        // console.log(resultData);
-        // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-        console.log(resultString);
-        // res.json(resultData)
-
-    });
-    res.send("Created");
-
+        // Create the new blog entry with the embedded vector
+        let blog = await Blog.create(req.body);
+        res.send("Created");
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
+
+
 
 router.post("/update", isAlumniLoggedIn, async(req, res) => {
     const curUserId = req.user.userId;
@@ -179,40 +230,42 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         var blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
         req.body.dateModified = Date.now();
         if (blog && blog.userId == curUserId) {
-            blog = await Blog.updateOne({ blogId: req.body.blogId }, req.body);
-            var spawn = require('child_process').spawn;
-            var process = spawn('python3', ['./python_scripts/script.py',
-                "vectorize",
-                blog.blogId
-            ]);
 
-            let resultString = '';
-            let resultData = {};
-            // As the stdout data stream is chunked,
-            // we need to concat all the chunks.
-            process.stdout.on('data', function(stdData) {
-                resultString += stdData.toString();
-            });
-
-            process.stdout.on('end', async function() {
-
-                // Parse the string as JSON when stdout
-                // data stream ends
-                // resultData = JSON.parse(resultString);
-                // console.log(resultData);
-                // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-                console.log(resultString);
-                // res.json(resultData)
-
-            });
-            console.log(blog);
-            res.send("Created");
-
+            if (req.body.content) {
+                const vectorEmbedding = await performWord2VecEmbedding(blog.content);
+                // Add the embedded vector to the request body
+                req.body.vectorEmbedding = vectorEmbedding;
+            }
+            blog = await Blog.updateOne({ blogId: blog.blogId }, req.body);
+            res.send("Updated");
         } else {
             res.status(400).json({
                 error: "Blog doesn't exist or is not published by the Current user ",
             });
         }
+    } catch (error) {
+        res.status(400).json({ error });
+    }
+});
+
+
+// Route to Set New Embeddings to all existing articles
+router.post("/updateAll", isAdminLoggedIn, async(req, res) => {
+    const curUserId = req.user.userId;
+    const { Blog } = req.context.models;
+    try {
+        var blogs = await Blog.find().lean();
+        for (let i = 0; i < blogs.length; i++) {
+            let blog = blogs[i];
+            req.body.dateModified = Date.now();
+
+            const vectorEmbedding = await performWord2VecEmbedding(blog.content);
+            // Add the embedded vector to the request body
+            req.body.vectorEmbedding = vectorEmbedding;
+
+            blog = await Blog.updateOne({ blogId: blog.blogId }, { "$set": { 'vectorEmbedding': vectorEmbedding } });
+        }
+        res.send("Updated All Blogs");
     } catch (error) {
         res.status(400).json({ error });
     }
