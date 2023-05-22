@@ -202,16 +202,30 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 
 });
 
-// get a students applications
-// with /student_my_application_view?studentId=xyz123
+// get a students applications [3 options]
+// 1. /my_application_view --> All applications by student [in a sorted manner]
+// 2. /my_application_view?applicationId=application123 --> A specific application
+// 3. /my_application_view?filter=applied  [selected/applied/rejected] --> Applications of particular status
 router.get(
-    "/student_my_application_view",
+    "/my_application_view",
     isStudentLoggedIn,
     async(req, res) => {
         const { Application } = req.context.models;
         curUserId = req.user.userId;
         // filter must be one of ["applied", "rejected", "selected"]
-        if (req.query.filter) {
+        if (req.query.applicationId) {
+            if (req.user.userType == "Student") {
+                res.json(
+                    // likes:-1 => descending , dateUploaded:-1 ==> latest
+                    await Application.findOne({
+                        applicationId: req.query.applicationId,
+                        studentId: curUserId,
+                    })
+                    .lean()
+                    .catch((error) => res.status(400).json({ error }))
+                );
+            }
+        } else if (req.query.filter) {
             res.json(
                 // likes:-1 => descending , dateUploaded:-1 ==> latest
                 await Application.find({
@@ -289,42 +303,5 @@ router.get(
         }
     }
 );
-
-// can only be accessed by the student who applied
-// or the alumni who poster this opportunity
-router.get("/individual_application", isLoggedIn, async(req, res) => {
-    const { Application } = req.context.models;
-    curUserId = req.user.userId;
-
-    try {
-        if (req.query.applicationId) {
-            if (req.user.userType == "Student") {
-                res.json(
-                    // likes:-1 => descending , dateUploaded:-1 ==> latest
-                    await Application.findOne({
-                        applicationId: req.query.applicationId,
-                        studentId: curUserId,
-                    })
-                    .lean()
-                    .catch((error) => res.status(400).json({ error }))
-                );
-            } else if (req.user.userType == "Alumni") {
-                res.json(
-                    // likes:-1 => descending , dateUploaded:-1 ==> latest
-                    await Application.findOne({
-                        applicationId: req.query.applicationId,
-                        alumniId: curUserId,
-                    })
-                    .lean()
-                    .catch((error) => res.status(400).json({ error }))
-                );
-            }
-        } else {
-            res.send(
-                "call /individual_application?applicationId=zyz123   \n An application will be visible only to the student who applied and the alumni who published the opportunity"
-            );
-        }
-    } catch (error) {}
-});
 
 module.exports = router;

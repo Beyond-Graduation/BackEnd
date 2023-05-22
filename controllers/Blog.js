@@ -3,6 +3,7 @@ const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom midd
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isAdminLoggedIn } = require("./middleware");
 const { getWord2VecModel } = require('../word2vecLoader');
+const { loadWord2VecModel } = require("../word2vecLoader");
 const word2vec = require('word2vec');
 const natural = require('natural');
 const tokenizer = new natural.WordTokenizer();
@@ -115,7 +116,7 @@ router.get("/recommend", isLoggedIn, async(req, res) => {
             throw new Error('Current article not found');
         }
 
-        const articles = await Blog.find({ blogId: { $ne: blogId } }).select('blogId title abstract imagePath vectorEmbedding');
+        const articles = await Blog.find({ blogId: { $ne: blogId } }).select('blogId title abstract imagePath firstName lastName likes vectorEmbedding');
 
         // Calculate cosine similarity for all articles
         const similarities = articles.map(article => ({
@@ -123,6 +124,9 @@ router.get("/recommend", isLoggedIn, async(req, res) => {
             title: article.title,
             abstract: article.abstract,
             imagePath: article.imagePath,
+            firstName: article.firstName,
+            lastName: article.lastName,
+            likes: article.likes,
             similarity: cosineSimilarity(currentArticle.vectorEmbedding, article.vectorEmbedding)
         }));
 
@@ -157,11 +161,14 @@ function preprocessText(text) {
 
 
 // Function to perform Word2Vec embedding using the loaded Word2Vec model
-function performWord2VecEmbedding(content) {
-    const model = getWord2VecModel();
+async function performWord2VecEmbedding(content) {
+    await loadWord2VecModel(); // Wait for the embedding model to be loaded
+
+    var model = getWord2VecModel();
     if (!model) {
-        throw new Error("Word2Vec model not loaded");
+        throw new Error("Word2Vec model not yet loaded!");
     }
+
     // Convert HTML to plain text
     const plainTextContent = htmlToText(content);
 
