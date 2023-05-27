@@ -13,7 +13,7 @@ const UserRouter = require("./controllers/User");
 const AdminRouter = require("./controllers/Admin");
 const NoticeRouter = require("./controllers/Notice");
 const InternshipRouter = require("./controllers/Internship");
-const { loadWord2VecModel } = require("./word2vecLoader");
+const { loadWord2VecModel } = require("./functions/word2vecLoader");
 
 // DESTRUCTURE ENV VARIABLES WITH DEFAULT VALUES
 const { PORT = 3000 } = process.env;

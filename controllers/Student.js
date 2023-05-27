@@ -7,8 +7,84 @@ const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom midd
 
 const router = Router(); // create router to create route bundle
 
-//DESTRUCTURE ENV VARIABLES WITH DEFAULTS
-const { SECRET = "secret" } = process.env;
+// Signup route to create a new user
+router.post("/signup", async(req, res) => {
+    const { Student } = req.context.models;
+    const { User } = req.context.models;
+    try {
+        var alreadyExists = await User.findOne({ email: req.body.email }).lean();
+        if (alreadyExists) {
+            return res.status(400).send({
+                message: 'An account already exists with this email ID! Kindly Log In if you have already registered.'
+            });
+
+        } else {
+            alreadyExists = await Student.findOne({ admissionId: req.body.admissionId }).lean();
+            if (alreadyExists) {
+                return res.status(400).send({
+                    message: 'An account already exists with this admission ID ! Kindly recheck and contact CETAA if you think there is a conflict'
+                });
+            } else {
+                // hash the password
+                req.body.password = await bcrypt.hash(req.body.password, 10);
+                req.body.updated = Date.now()
+                    // create a new user
+                await Student.create(req.body);
+                var user = await Student.findOne({ userId: req.body.userId }).lean();
+                const totalFields = 14
+                var emptyFields = 0
+                const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
+                for (const key of Object.keys(user)) {
+                    if (user[key] || exclusions.includes(key)) {} else {
+                        emptyFields++
+                    }
+                }
+                req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
+                await Student.updateOne({ userId: user.userId }, req.body);
+
+                user = await Student.findOne({ userId: user.userId }).lean();
+                res.json(user);
+
+            }
+        }
+    } catch (error) {
+        res.status(400).json({ error });
+    }
+});
+
+// Login route to verify a user and get a token
+router.post("/update", isLoggedIn, async(req, res) => {
+    const curUserId = req.user.userId;
+    const { Student } = req.context.models;
+    try {
+        // check if the user exists
+        var user = await Student.findOne({ userId: curUserId }).lean();
+        req.body.updated = Date.now()
+        if (user) {
+            await Student.updateOne({ userId: curUserId }, req.body);
+            user = await Student.findOne({ userId: curUserId }).lean();
+            console.log(user)
+            const totalFields = 14
+            var emptyFields = 0
+            const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
+            for (const key of Object.keys(user)) {
+                if (user[key] || exclusions.includes(key)) {} else {
+                    emptyFields++
+                }
+            }
+            req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
+            await Student.updateOne({ userId: user.userId }, req.body);
+            // send updated user as response
+            user = await Student.findOne({ userId: curUserId });
+            res.json(user);
+        } else {
+            res.status(400).json({ error: "Student doesn't exist" });
+        }
+    } catch (error) {
+        res.status(400).json({ error });
+    }
+});
+
 
 router.get("/student_list", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
@@ -67,72 +143,6 @@ router.get("/student_details", isLoggedIn, async(req, res) => {
     }
 
 });
-
-
-
-// Signup route to create a new user
-router.post("/signup", async(req, res) => {
-    const { Student } = req.context.models;
-
-    try {
-        // hash the password
-        req.body.password = await bcrypt.hash(req.body.password, 10);
-        req.body.updated = Date.now()
-            // create a new user
-        await Student.create(req.body);
-        var user = await Student.findOne({ userId: req.body.userId }).lean();
-        const totalFields = 14
-        var emptyFields = 0
-        const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
-        for (const key of Object.keys(user)) {
-            if (user[key] || exclusions.includes(key)) {} else {
-                emptyFields++
-            }
-        }
-        req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
-        await Student.updateOne({ userId: user.userId }, req.body);
-
-        user = await Student.findOne({ userId: user.userId }).lean();
-        res.json(user);
-    } catch (error) {
-        res.status(400).json({ error });
-    }
-});
-
-// Login route to verify a user and get a token
-router.post("/update", isLoggedIn, async(req, res) => {
-    const curUserId = req.user.userId;
-    const { Student } = req.context.models;
-    try {
-        // check if the user exists
-        var user = await Student.findOne({ userId: curUserId }).lean();
-        req.body.updated = Date.now()
-        if (user) {
-            await Student.updateOne({ userId: curUserId }, req.body);
-            user = await Student.findOne({ userId: curUserId }).lean();
-            console.log(user)
-            const totalFields = 14
-            var emptyFields = 0
-            const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
-            for (const key of Object.keys(user)) {
-                if (user[key] || exclusions.includes(key)) {} else {
-                    emptyFields++
-                }
-            }
-            req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
-            await Student.updateOne({ userId: user.userId }, req.body);
-            // send updated user as response
-            user = await Student.findOne({ userId: curUserId });
-            res.json(user);
-        } else {
-            res.status(400).json({ error: "Student doesn't exist" });
-        }
-    } catch (error) {
-        res.status(400).json({ error });
-    }
-});
-
-
 
 // Route to add favorite alumni
 router.post("/favAlumAdd", isLoggedIn, async(req, res) => {
