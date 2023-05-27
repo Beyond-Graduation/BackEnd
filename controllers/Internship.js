@@ -1,4 +1,7 @@
+const ExcelJS = require('exceljs');
+const { DateTime } = require('luxon');
 const { Router } = require("express"); // import Router from express
+
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isStudentLoggedIn } = require("./middleware"); // import isStudentLoggedIn custom middleware
@@ -48,16 +51,12 @@ router.get("/view_internships", isLoggedIn, async(req, res) => {
         }
         res.json(internship);
     } else {
-        let internships = await Internship.find()
-            .lean()
+        let internships = await Internship.find({ status: "open" })
             .sort({ dateUploaded: -1 })
+            .lean()
             .catch((error) => res.status(400).json({ error }));
 
-
-
         const internshipPromises = internships.map(async(internship) => {
-            internship.userType = req.user.userType;
-
             if (req.user.userType === "Student") {
                 const appliedOrNot = await Application.findOne({
                     internshipId: internship.internshipId,
@@ -111,6 +110,89 @@ router.post("/close", isAlumniLoggedIn, async(req, res) => {
         }
     } catch (error) {
         res.status(400).json({ error });
+    }
+});
+
+
+// Route to compile and generate an excel file of applications
+router.get('/compile', async(req, res) => {
+    const { Application } = req.context.models;
+    const { Internship } = req.context.models;
+    try {
+
+        const applications = await Application.find({ internshipId: req.query.internshipId }).sort({ dateApplied: 1 }).lean();
+        const internship = await Internship.findOne({ internshipId: req.query.internshipId }).lean();
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Applications');
+
+        // Merge cells for the headline
+        const headlineRange = `A1:M3`;
+        worksheet.mergeCells(headlineRange);
+        const headlineCell = worksheet.getCell('A1');
+        const dateUploaded = DateTime.fromJSDate(internship.dateUploaded).setZone('Asia/Kolkata');
+        headlineCell.value = {
+            richText: [
+                { text: `${internship.role} - ${internship.companyName}`, bold: true },
+                { text: ` ${dateUploaded.toFormat('LLL yyyy')}`, bold: false }
+            ]
+        };
+        headlineCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        headlineCell.font = { bold: true, size: 20 };
+        // Blank Row
+        worksheet.addRow(['Posted By ', internship.firstName, internship.lastName]);
+        worksheet.addRow([]);
+        // Extract headers from the qnas field
+        const headers = applications[0].qnas.map(qna => qna.question);
+
+        // Add headers to the worksheet
+        const headerRow = worksheet.addRow(['First Name',
+            'Last Name',
+            'Email',
+            'Phone',
+            'Degree',
+            'Branch',
+            'CGPA',
+            'Expected Graduation Year',
+            'Year of Study',
+            'Resume Link',
+            ...headers,
+            'Date Applied'
+        ]);
+        headerRow.eachCell(cell => {
+            cell.font = { bold: true };
+        });
+
+        // Iterate over the applications and add the data to the worksheet
+        applications.forEach(application => {
+            const rowData = [
+                application.firstName,
+                application.lastName,
+                application.email,
+                application.phone,
+                application.degree,
+                application.branch,
+                application.cgpa,
+                application.expectedGraduationYear,
+                application.yearofStudy,
+                application.resume,
+                ...application.qnas.map(qna => qna.answer), // Extract answers from qnas field
+                DateTime.fromJSDate(application.dateApplied).setZone('Asia/Kolkata').toFormat('yyyy-MM-dd HH:mm:ss') // Convert to IST
+            ];
+            worksheet.addRow(rowData);
+        });
+
+        // Generate a buffer from the workbook
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Set the response headers to indicate a downloadable file
+        res.setHeader('Content-Disposition', 'attachment; filename=applications.xlsx');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        // Send the buffer as the response
+        res.send(buffer);
+    } catch (error) {
+        res.status(400).json({ error: `Error compiling applications: ${error.message}` });
     }
 });
 
@@ -181,7 +263,9 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
     req.body.degree = user.degree;
     req.body.branch = user.department;
     req.body.expectedGraduationYear = user.expectedGraduationYear;
-    req.body.resume = user.resume;
+    if (!req.body.resume) {
+        req.body.resume = user.resume;
+    }
     req.body.dateApplied = Date.now();
 
     var internship = await Internship.findOne({
@@ -202,16 +286,30 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 
 });
 
-// get a students applications
-// with /student_my_application_view?studentId=xyz123
+// get a students applications [3 options]
+// 1. /my_application_view --> All applications by student [in a sorted manner]
+// 2. /my_application_view?applicationId=application123 --> A specific application
+// 3. /my_application_view?filter=applied  [selected/applied/rejected] --> Applications of particular status
 router.get(
-    "/student_my_application_view",
+    "/my_application_view",
     isStudentLoggedIn,
     async(req, res) => {
         const { Application } = req.context.models;
         curUserId = req.user.userId;
         // filter must be one of ["applied", "rejected", "selected"]
-        if (req.query.filter) {
+        if (req.query.applicationId) {
+            if (req.user.userType == "Student") {
+                res.json(
+                    // likes:-1 => descending , dateUploaded:-1 ==> latest
+                    await Application.findOne({
+                        applicationId: req.query.applicationId,
+                        studentId: curUserId,
+                    })
+                    .lean()
+                    .catch((error) => res.status(400).json({ error }))
+                );
+            }
+        } else if (req.query.filter) {
             res.json(
                 // likes:-1 => descending , dateUploaded:-1 ==> latest
                 await Application.find({
@@ -263,13 +361,14 @@ router.get(
     }
 );
 
+// For alumni
 router.get(
     "/opportunity_specific_applications",
     isAlumniLoggedIn,
     async(req, res) => {
         const { Application } = req.context.models;
         curUserId = req.user.userId;
-        // filter must be one of ["applied", "rejected", "selected"]
+
         if (req.query.internshipId) {
             res.json(
                 // likes:-1 => descending , dateUploaded:-1 ==> latest
@@ -289,42 +388,5 @@ router.get(
         }
     }
 );
-
-// can only be accessed by the student who applied
-// or the alumni who poster this opportunity
-router.get("/individual_application", isLoggedIn, async(req, res) => {
-    const { Application } = req.context.models;
-    curUserId = req.user.userId;
-
-    try {
-        if (req.query.applicationId) {
-            if (req.user.userType == "Student") {
-                res.json(
-                    // likes:-1 => descending , dateUploaded:-1 ==> latest
-                    await Application.findOne({
-                        applicationId: req.query.applicationId,
-                        studentId: curUserId,
-                    })
-                    .lean()
-                    .catch((error) => res.status(400).json({ error }))
-                );
-            } else if (req.user.userType == "Alumni") {
-                res.json(
-                    // likes:-1 => descending , dateUploaded:-1 ==> latest
-                    await Application.findOne({
-                        applicationId: req.query.applicationId,
-                        alumniId: curUserId,
-                    })
-                    .lean()
-                    .catch((error) => res.status(400).json({ error }))
-                );
-            }
-        } else {
-            res.send(
-                "call /individual_application?applicationId=zyz123   \n An application will be visible only to the student who applied and the alumni who published the opportunity"
-            );
-        }
-    } catch (error) {}
-});
 
 module.exports = router;
