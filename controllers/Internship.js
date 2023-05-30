@@ -5,7 +5,7 @@ const { Router } = require("express"); // import Router from express
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isStudentLoggedIn } = require("./middleware"); // import isStudentLoggedIn custom middleware
-
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 
 const router = Router();
 
@@ -16,19 +16,33 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
     const { Internship } = req.context.models;
     const { Alumni } = req.context.models;
     const curUserId = req.user.userId;
-    const user = await Alumni.findOne({ userId: curUserId }).lean(); // get username from req.user property created by isLoggedIn middleware
-    req.body.alumniId = curUserId; // add userId property to req.body
-    req.body.firstName = user.firstName;
-    req.body.lastName = user.lastName;
-    req.body.status = "open";
-    req.body.dateUploaded = Date.now();
-    // pick email from front end
+    try {
+        const user = await Alumni.findOne({ userId: curUserId }).lean(); // get username from req.user property created by isLoggedIn middleware
+        req.body.alumniId = curUserId; // add userId property to req.body
+        req.body.firstName = user.firstName;
+        req.body.lastName = user.lastName;
+        req.body.status = "open";
+        req.body.dateUploaded = Date.now();
+        if (!req.body.email) {
+            req.body.email = user.email;
+        }
+        // Convert HTML to plain text
+        const plainTextContent = htmlToText(req.body.description);
+        // Embed the blog content using Word2Vec
+        const vectorEmbedding = await performWord2VecEmbedding(plainTextContent);
 
-    res.json(
-        await Internship.create(req.body).catch((error) =>
-            res.status(400).json({ error })
-        )
-    );
+        // Add the embedded vector to the request body
+        req.body.vectorEmbedding = vectorEmbedding;
+        // pick email from front end
+
+        res.json(
+            await Internship.create(req.body).catch((error) =>
+                res.status(400).json({ error })
+            )
+        );
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
+    }
 });
 
 //view all internships and individual internship with req.query.internshipId
@@ -109,7 +123,7 @@ router.post("/close", isAlumniLoggedIn, async(req, res) => {
             });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -157,7 +171,7 @@ router.get('/compile', async(req, res) => {
             'Year of Study',
             'Resume Link',
             ...headers,
-            'Date Applied'
+            'Date Applied (IST)'
         ]);
         headerRow.eachCell(cell => {
             cell.font = { bold: true };
@@ -177,7 +191,7 @@ router.get('/compile', async(req, res) => {
                 application.yearofStudy,
                 application.resume,
                 ...application.qnas.map(qna => qna.answer), // Extract answers from qnas field
-                DateTime.fromJSDate(application.dateApplied).setZone('Asia/Kolkata').toFormat('yyyy-MM-dd HH:mm:ss') // Convert to IST
+                DateTime.fromJSDate(application.dateApplied).setZone('Asia/Kolkata').toFormat('yyyy-MM-dd HH:mm:ss') // Converted to IST
             ];
             worksheet.addRow(rowData);
         });
@@ -217,7 +231,7 @@ router.post("/withdraw", isAlumniLoggedIn, async(req, res) => {
             });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -244,7 +258,7 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
             });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 

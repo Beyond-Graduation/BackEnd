@@ -3,7 +3,7 @@ const { Router } = require("express"); // import router from express
 const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
-
+const { generateCombinations } = require("../functions/customQueryConstraints.js");
 
 const router = Router(); // create router to create route bundle
 
@@ -48,7 +48,7 @@ router.post("/signup", async(req, res) => {
             }
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -81,54 +81,93 @@ router.post("/update", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: "Student doesn't exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
 
 router.get("/student_list", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
+    const query = {};
+
+    // Department Filter
     if (req.query.department) {
-        var dept = req.query.department
-        console.log("Department:", dept)
-        res.json(
-            await Student.find({ department: dept }).lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 }).catch((error) =>
-                res.status(400).json({ error })
-            )
-        );
-    } else if (req.query.sort == "name") {
-        res.json(
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+        const department = req.query.department;
+        query.department = department;
+    }
 
-    } else if (req.query.sort == "latest") {
-        res.json(
-            // likes:-1 => descending , dateUploaded:-1 ==> latest
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+    // Areas of Interest Filter
+    if (req.query.areasOfInterest) {
+        const areasOfInterest = req.query.areasOfInterest.split(",");
 
-    } else if (req.query.sort == "oldest") {
-        res.json(
-            // dateUploaded:1 ==> oldest
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: 1, updated: 1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-        return;
+        // Build the $or array for filtering
+        const orArray = [];
 
-    } else {
-        res.json(
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+        // Add conditions for all areasOfInterest
+        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
+
+        // Generate combinations of areasOfInterest and add conditions
+        const combinations = generateCombinations(areasOfInterest);
+        combinations.forEach((combination) => {
+            orArray.push({ areasOfInterest: { $all: combination } });
+        });
+
+        // Add condition for any single areaOfInterest
+        orArray.push({ areasOfInterest: { $in: areasOfInterest } });
+
+        query.$or = orArray;
+    }
+
+
+    // // Year of Joining Before Filter
+    // if (req.query.yearBefore) {
+    //     const yearBefore = parseInt(req.query.yearBefore);
+    //     query.yearOfJoining = { $lt: yearBefore };
+    // }
+
+    // // Year of Joining After Filter
+    // if (req.query.yearAfter) {
+    //     const yearAfter = parseInt(req.query.yearAfter);
+    //     query.yearOfJoining = { $gt: yearAfter };
+    // }
+
+    try {
+        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+
+        // Sort by Name A to Z
+        if (req.query.sort === "a_to_z") {
+            sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Name Z to A
+        if (req.query.sort === "z_to_a") {
+            sortOptions = { firstName: -1, lastName: -1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Latest
+        if (req.query.sort === "latest") {
+            sortOptions = { dateJoined: -1, firstName: 1, lastName: 1, updated: -1 };
+        }
+
+        // Sort by Oldest
+        if (req.query.sort === "oldest") {
+            sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
+        }
+
+        const studentList = await Student.find(query)
+            .lean()
+            .collation({ locale: "en" })
+            .sort(sortOptions)
+            .catch((error) => {
+                console.error(error);
+                res.status(400).json({ error });
+            });
+
+        res.json(studentList);
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
-
 
 router.get("/student_details", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
@@ -193,7 +232,7 @@ router.get("/favAlumlist", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: curUserId + " Does Not exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -220,7 +259,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -242,7 +281,7 @@ router.get("/bookmarklist", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: curUserId + " Does Not exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 

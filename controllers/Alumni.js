@@ -3,7 +3,7 @@ const { Router } = require("express"); // import router from express
 const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
-
+const { generateCombinations } = require("../functions/customQueryConstraints.js");
 const router = Router(); // create router to create route bundle
 
 
@@ -66,7 +66,7 @@ router.post("/signup", async(req, res) => {
         }
 
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -103,7 +103,7 @@ router.post("/update", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: "Alumni doesn't exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -122,53 +122,91 @@ router.post("/delete", async(req, res) => {
             res.send("Verify CONFIRM key");
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
 
-// Department Wise Filtering included
-// http://localhost:4000/alumni/alumni_list?department=CSE
 router.get("/alumni_list", isLoggedIn, async(req, res) => {
     const { Alumni } = req.context.models;
+    const query = {};
+
+    // Department Filter
     if (req.query.department) {
-        var dept = req.query.department;
-        console.log("Department:", dept);
-        res.json(
-            await Alumni.find({ department: dept }).lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 }).catch((error) =>
-                res.status(400).json({ error })
-            )
-        );
-    } else if (req.query.sort == "name") {
-        res.json(
-            await Alumni.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+        const department = req.query.department;
+        query.department = department;
+    }
 
-    } else if (req.query.sort == "latest") {
-        res.json(
-            // likes:-1 => descending , dateUploaded:-1 ==> latest
-            await Alumni.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+    // Areas of Interest Filter
+    if (req.query.areasOfInterest) {
+        const areasOfInterest = req.query.areasOfInterest.split(",");
 
-    } else if (req.query.sort == "oldest") {
-        res.json(
-            // dateUploaded:1 ==> oldest
-            await Alumni.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: 1, updated: 1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-        return;
+        // Build the $or array for filtering
+        const orArray = [];
 
-    } else {
-        res.json(
-            await Alumni.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
+        // Add conditions for all areasOfInterest
+        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
+
+        // Generate combinations of areasOfInterest and add conditions
+        const combinations = generateCombinations(areasOfInterest);
+        combinations.forEach((combination) => {
+            orArray.push({ areasOfInterest: { $all: combination } });
+        });
+
+        // Add condition for any single areaOfInterest
+        orArray.push({ areasOfInterest: { $in: areasOfInterest } });
+
+        query.$or = orArray;
+    }
+
+
+    // Year of Graduation Before Filter
+    if (req.query.yearBefore) {
+        const yearBefore = parseInt(req.query.yearBefore);
+        query.yearGraduation = { $lt: yearBefore };
+    }
+
+    // Year of Graduation After Filter
+    if (req.query.yearAfter) {
+        const yearAfter = parseInt(req.query.yearAfter);
+        query.yearGraduation = { $gt: yearAfter };
+    }
+
+    try {
+        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+
+        // Sort by Name A to Z
+        if (req.query.sort === "a_to_z") {
+            sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Name Z to A
+        if (req.query.sort === "z_to_a") {
+            sortOptions = { firstName: -1, lastName: -1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Latest
+        if (req.query.sort === "latest") {
+            sortOptions = { dateJoined: -1, firstName: 1, lastName: 1, updated: -1 };
+        }
+
+        // Sort by Oldest
+        if (req.query.sort === "oldest") {
+            sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
+        }
+
+        const alumniList = await Alumni.find(query)
+            .lean()
+            .collation({ locale: "en" })
+            .sort(sortOptions)
+            .catch((error) => {
+                console.error(error);
+                res.status(400).json({ error });
+            });
+
+        res.json(alumniList);
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -194,28 +232,6 @@ router.get("/alumni_details", isLoggedIn, async(req, res) => {
     }
 });
 
-router.post("/filter", isLoggedIn, async(req, res) => {
-    const { Alumni } = req.context.models;
-    var query = {};
-    if (req.body.department) {
-        query.department = req.body.department;
-    }
-    if (req.body.areasOfInterest) {
-        query.areasOfInterest = { $all: req.body.areasOfInterest };
-    }
-    if (req.body.before && req.body.after) {
-        query.yearGraduation = { $gte: req.body.after, $lte: req.body.before };
-    } else if (req.body.after) {
-        query.yearGraduation = { $gte: req.body.after };
-    } else if (req.body.before) {
-        query.yearGraduation = { $lte: req.body.before };
-    }
-    console.log("QUERY :", query);
-    res.json(
-        await Alumni.find(query).catch((error) => res.status(400).json({ error }))
-    );
-});
-
 // Route to add bookmarks
 router.post("/bookmark", isLoggedIn, async(req, res) => {
     const curUserId = req.user.userId;
@@ -238,7 +254,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -258,7 +274,7 @@ router.get("/bookmarklist", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: curUserId + " Does Not exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 

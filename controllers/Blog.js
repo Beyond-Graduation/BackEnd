@@ -2,12 +2,7 @@ const { Router } = require("express"); // import Router from express
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isAdminLoggedIn } = require("./middleware");
-const { getWord2VecModel } = require('../functions/word2vecLoader');
-const { loadWord2VecModel } = require("../functions/word2vecLoader");
-const word2vec = require('word2vec');
-const natural = require('natural');
-const tokenizer = new natural.WordTokenizer();
-const stopwords = require('stopwords').english;
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 const { htmlToText } = require('html-to-text');
 const cosineSimilarity = require('cosine-similarity');
 
@@ -144,63 +139,6 @@ router.get("/recommend", isLoggedIn, async(req, res) => {
 });
 
 
-// Function to preprocess the text
-function preprocessText(text) {
-    // Tokenization
-    const tokens = tokenizer.tokenize(text);
-
-    // Removing punctuation and converting to lowercase
-    const processedTokens = tokens.map(token => token.replace(/[^\w\s]/gi, '').toLowerCase());
-
-    // Removing stop words
-    const filteredTokens = processedTokens.filter(token => !stopwords.includes(token));
-    return filteredTokens;
-
-}
-
-
-
-// Function to perform Word2Vec embedding using the loaded Word2Vec model
-async function performWord2VecEmbedding(content) {
-    await loadWord2VecModel(); // Wait for the embedding model to be loaded
-
-    var model = getWord2VecModel();
-    if (!model) {
-        throw new Error("Word2Vec model not yet loaded!");
-    }
-
-    // Convert HTML to plain text
-    const plainTextContent = htmlToText(content);
-
-    // Preprocess the content and split it into individual tokens
-    const tokens = preprocessText(plainTextContent);
-
-    // Initialize the sum embedding vector
-    let sumEmbedding = null;
-
-    // Calculate the sum of embeddings for all tokens
-    let validTokensCount = 0; // Count the number of tokens with valid embeddings
-    for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
-        const embedding = model.getVector(token);
-        if (embedding) {
-            validTokensCount++;
-            if (!sumEmbedding) {
-                sumEmbedding = embedding.values;
-            } else {
-                sumEmbedding = sumEmbedding.map((value, index) => value + embedding.values[index]);
-            }
-        }
-    }
-
-    // Calculate the average embedding
-    const avgEmbedding = sumEmbedding.map((sum) => sum / validTokensCount);
-    return Array.from(avgEmbedding);
-
-}
-
-
-
 
 // create Route with isLoggedIn middleware
 router.post("/create", isAlumniLoggedIn, async(req, res) => {
@@ -213,8 +151,11 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
     req.body.lastName = user.lastName;
 
     try {
+
+        // Convert HTML to plain text
+        const plainTextContent = htmlToText(req.body.content);
         // Embed the blog content using Word2Vec
-        const vectorEmbedding = await performWord2VecEmbedding(req.body.content);
+        const vectorEmbedding = await performWord2VecEmbedding(plainTextContent);
 
         // Add the embedded vector to the request body
         req.body.vectorEmbedding = vectorEmbedding;
@@ -239,7 +180,10 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         if (blog && blog.userId == curUserId) {
 
             if (req.body.content) {
-                const vectorEmbedding = await performWord2VecEmbedding(blog.content);
+                // Convert HTML to plain text
+                const plainTextContent = htmlToText(req.body.content);
+                // Embed the blog content using Word2Vec
+                const vectorEmbedding = await performWord2VecEmbedding(plainTextContent);
                 // Add the embedded vector to the request body
                 req.body.vectorEmbedding = vectorEmbedding;
             }
@@ -251,7 +195,7 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
             });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -264,17 +208,18 @@ router.post("/updateAll", isAdminLoggedIn, async(req, res) => {
         var blogs = await Blog.find().lean();
         for (let i = 0; i < blogs.length; i++) {
             let blog = blogs[i];
-            req.body.dateModified = Date.now();
+            // req.body.dateModified = Date.now();
 
-            const vectorEmbedding = await performWord2VecEmbedding(blog.content);
-            // Add the embedded vector to the request body
-            req.body.vectorEmbedding = vectorEmbedding;
-
+            // Convert HTML to plain text
+            const plainTextContent = htmlToText(blog.content);
+            // Embed the blog content using Word2Vec
+            const vectorEmbedding = await performWord2VecEmbedding(plainTextContent);
+            console.log(vectorEmbedding);
             blog = await Blog.updateOne({ blogId: blog.blogId }, { "$set": { 'vectorEmbedding': vectorEmbedding } });
         }
         res.send("Updated All Blogs");
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -314,7 +259,7 @@ router.post("/like", isLoggedIn, async(req, res) => {
         }
         res.json(user);
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -342,7 +287,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             res.json(user);
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -372,7 +317,7 @@ router.post("/addComments", isLoggedIn, async(req, res) => {
             )
         );
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
