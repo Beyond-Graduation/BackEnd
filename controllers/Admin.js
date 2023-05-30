@@ -3,15 +3,36 @@ const nodemailer = require('nodemailer'); // import nodemailer to send emails
 const { Router } = require("express"); // import router from express
 const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
-const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAdminLoggedIn } = require("./middleware");
-const AlumniPending = require("../models/AlumniPending");
-
 const router = Router(); // create router to create route bundle
 
-//DESTRUCTURE ENV VARIABLES WITH DEFAULTS
-const { SECRET = "secret" } = process.env;
 
+
+// Signup route to create a new user
+router.post("/signup", async(req, res) => {
+    const { Admin } = req.context.models;
+    const { User } = req.context.models;
+    try {
+        var alreadyExists = await User.findOne({ email: req.body.email }).lean();
+        if (alreadyExists) {
+            return res.status(400).send({
+                message: 'An account already exists with this email ID! Kindly Log In if you have already registered.'
+            });
+
+        } else {
+            // hash the password
+            req.body.password = await bcrypt.hash(req.body.password, 10);
+            req.body.updated = Date.now();
+            req.body.likedBlogs = []
+                // create a new user
+            const user = await Admin.create(req.body);
+            // send new user as response
+            res.json(user);
+        }
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
+    }
+});
 
 
 router.get("/pending_alumni_list", isAdminLoggedIn, async(req, res) => {
@@ -103,23 +124,6 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
     }
 });
 
-
-// Signup route to create a new user
-router.post("/signup", async(req, res) => {
-    const { Admin } = req.context.models;
-    try {
-        // hash the password
-        req.body.password = await bcrypt.hash(req.body.password, 10);
-        req.body.updated = Date.now();
-        req.body.likedBlogs = []
-            // create a new user
-        const user = await Admin.create(req.body);
-        // send new user as response
-        res.json(user);
-    } catch (error) {
-        res.status(400).json({ error });
-    }
-});
 
 
 
@@ -228,39 +232,9 @@ router.get("/stats", isAdminLoggedIn, async(req, res) => {
 
 
 router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
-    const { Blog } = req.context.models;
-    const { User } = req.context.models;
+    const { Alumni } = req.context.models;
 
-    var blogs = await Blog.find().lean();
-    for (let i = 0; i < blogs.length; i++) {
-        let blog = blogs[i];
-        var spawn = require('child_process').spawn;
-        var process = spawn('python3', ['./python_scripts/script.py',
-            "vectorize",
-            blog.blogId
-        ]);
-        let resultString = '';
-        let resultData = {};
-        // As the stdout data stream is chunked,
-        // we need to concat all the chunks.
-        process.stdout.on('data', function(stdData) {
-            resultString += stdData.toString();
-        });
-
-        process.stdout.on('end', async function() {
-
-            // Parse the string as JSON when stdout
-            // data stream ends
-            // resultData = JSON.parse(resultString);
-            // console.log(resultData);
-            // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-            console.log(resultString);
-            // res.json(resultData)
-
-        });
-
-    }
-
+    await Alumni.updateMany({ "workExperience": { $elemMatch: { to: { $in: [2022, 2023] } } } }, { $set: { "workExperience.$[exp].to": null, "workExperience.$[exp].currentlyWorkingHere": true } }, { arrayFilters: [{ "exp.to": { $in: [2022, 2023] } }] });
 
     res.send("Updated");
 });

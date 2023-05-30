@@ -3,99 +3,52 @@ const { Router } = require("express"); // import router from express
 const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
-
+const { generateCombinations } = require("../functions/customQueryConstraints.js");
 
 const router = Router(); // create router to create route bundle
-
-//DESTRUCTURE ENV VARIABLES WITH DEFAULTS
-const { SECRET = "secret" } = process.env;
-
-router.get("/student_list", isLoggedIn, async(req, res) => {
-    const { Student } = req.context.models;
-    if (req.query.department) {
-        var dept = req.query.department
-        console.log("Department:", dept)
-        res.json(
-            await Student.find({ department: dept }).lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 }).catch((error) =>
-                res.status(400).json({ error })
-            )
-        );
-    } else if (req.query.sort == "name") {
-        res.json(
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-
-    } else if (req.query.sort == "latest") {
-        res.json(
-            // likes:-1 => descending , dateUploaded:-1 ==> latest
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-
-    } else if (req.query.sort == "oldest") {
-        res.json(
-            // dateUploaded:1 ==> oldest
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ dateJoined: 1, updated: 1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-        return;
-
-    } else {
-        res.json(
-            await Student.find()
-            .lean().collation({ 'locale': 'en' }).sort({ firstName: 1, lastName: 1, dateJoined: -1, updated: -1 })
-            .catch((error) => res.status(400).json({ error }))
-        );
-    }
-});
-
-
-router.get("/student_details", isLoggedIn, async(req, res) => {
-    const { Student } = req.context.models;
-    if (req.query.userId) {
-        var curUserId = req.query.userId
-        console.log("User Id:", curUserId)
-        res.json(
-            await Student.findOne({ userId: curUserId }).catch((error) =>
-                res.status(400).json({ error })
-            )
-        );
-    }
-
-});
-
-
 
 // Signup route to create a new user
 router.post("/signup", async(req, res) => {
     const { Student } = req.context.models;
-
+    const { User } = req.context.models;
     try {
-        // hash the password
-        req.body.password = await bcrypt.hash(req.body.password, 10);
-        req.body.updated = Date.now()
-            // create a new user
-        await Student.create(req.body);
-        var user = await Student.findOne({ userId: req.body.userId }).lean();
-        const totalFields = 14
-        var emptyFields = 0
-        const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
-        for (const key of Object.keys(user)) {
-            if (user[key] || exclusions.includes(key)) {} else {
-                emptyFields++
+        var alreadyExists = await User.findOne({ email: req.body.email }).lean();
+        if (alreadyExists) {
+            return res.status(400).send({
+                message: 'An account already exists with this email ID! Kindly Log In if you have already registered.'
+            });
+
+        } else {
+            alreadyExists = await Student.findOne({ admissionId: req.body.admissionId }).lean();
+            if (alreadyExists) {
+                return res.status(400).send({
+                    message: 'An account already exists with this admission ID ! Kindly recheck and contact CETAA if you think there is a conflict'
+                });
+            } else {
+                // hash the password
+                req.body.password = await bcrypt.hash(req.body.password, 10);
+                req.body.updated = Date.now()
+                    // create a new user
+                await Student.create(req.body);
+                var user = await Student.findOne({ userId: req.body.userId }).lean();
+                const totalFields = 14
+                var emptyFields = 0
+                const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
+                for (const key of Object.keys(user)) {
+                    if (user[key] || exclusions.includes(key)) {} else {
+                        emptyFields++
+                    }
+                }
+                req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
+                await Student.updateOne({ userId: user.userId }, req.body);
+
+                user = await Student.findOne({ userId: user.userId }).lean();
+                res.json(user);
+
             }
         }
-        req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
-        await Student.updateOne({ userId: user.userId }, req.body);
-
-        user = await Student.findOne({ userId: user.userId }).lean();
-        res.json(user);
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -128,11 +81,107 @@ router.post("/update", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: "Student doesn't exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
 
+router.get("/student_list", isLoggedIn, async(req, res) => {
+    const { Student } = req.context.models;
+    const query = {};
+
+    // Department Filter
+    if (req.query.department) {
+        const department = req.query.department;
+        query.department = department;
+    }
+
+    // Areas of Interest Filter
+    if (req.query.areasOfInterest) {
+        const areasOfInterest = req.query.areasOfInterest.split(",");
+
+        // Build the $or array for filtering
+        const orArray = [];
+
+        // Add conditions for all areasOfInterest
+        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
+
+        // Generate combinations of areasOfInterest and add conditions
+        const combinations = generateCombinations(areasOfInterest);
+        combinations.forEach((combination) => {
+            orArray.push({ areasOfInterest: { $all: combination } });
+        });
+
+        // Add condition for any single areaOfInterest
+        orArray.push({ areasOfInterest: { $in: areasOfInterest } });
+
+        query.$or = orArray;
+    }
+
+
+    // // Year of Joining Before Filter
+    // if (req.query.yearBefore) {
+    //     const yearBefore = parseInt(req.query.yearBefore);
+    //     query.yearOfJoining = { $lt: yearBefore };
+    // }
+
+    // // Year of Joining After Filter
+    // if (req.query.yearAfter) {
+    //     const yearAfter = parseInt(req.query.yearAfter);
+    //     query.yearOfJoining = { $gt: yearAfter };
+    // }
+
+    try {
+        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+
+        // Sort by Name A to Z
+        if (req.query.sort === "a_to_z") {
+            sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Name Z to A
+        if (req.query.sort === "z_to_a") {
+            sortOptions = { firstName: -1, lastName: -1, dateJoined: -1, updated: -1 };
+        }
+
+        // Sort by Latest
+        if (req.query.sort === "latest") {
+            sortOptions = { dateJoined: -1, firstName: 1, lastName: 1, updated: -1 };
+        }
+
+        // Sort by Oldest
+        if (req.query.sort === "oldest") {
+            sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
+        }
+
+        const studentList = await Student.find(query)
+            .lean()
+            .collation({ locale: "en" })
+            .sort(sortOptions)
+            .catch((error) => {
+                console.error(error);
+                res.status(400).json({ error });
+            });
+
+        res.json(studentList);
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
+    }
+});
+
+router.get("/student_details", isLoggedIn, async(req, res) => {
+    const { Student } = req.context.models;
+    if (req.query.userId) {
+        var curUserId = req.query.userId
+        console.log("User Id:", curUserId)
+        res.json(
+            await Student.findOne({ userId: curUserId }).catch((error) =>
+                res.status(400).json({ error })
+            )
+        );
+    }
+
+});
 
 // Route to add favorite alumni
 router.post("/favAlumAdd", isLoggedIn, async(req, res) => {
@@ -183,7 +232,7 @@ router.get("/favAlumlist", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: curUserId + " Does Not exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -210,7 +259,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -232,7 +281,7 @@ router.get("/bookmarklist", isLoggedIn, async(req, res) => {
             res.status(400).json({ error: curUserId + " Does Not exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
