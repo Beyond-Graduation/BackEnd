@@ -30,7 +30,6 @@ const InternshipSchema = new Schema({
     deadline: {
         type: Date,
         required: true,
-        type: Date,
         default: function() {
             const currentDate = new Date();
             currentDate.setDate(currentDate.getDate() + 10);
@@ -38,9 +37,10 @@ const InternshipSchema = new Schema({
         }
     },
     dateUploaded: { type: Date, required: true, default: Date.now() },
-    dateModified: { type: Date, default: Date.now() }
-    // yearofStudy: { type: Number, min: 0, default: 0 },
-    // department_constraints: { type: String, required: true },
+    dateModified: { type: Date, default: Date.now() },
+    vectorEmbedding: [Number]
+        // yearofStudy: { type: Number, min: 0, default: 0 },
+        // department_constraints: { type: String, required: true },
 });
 
 // Status options are "open" and "closed"

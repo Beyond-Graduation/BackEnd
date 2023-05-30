@@ -8,7 +8,7 @@ const qnaSchema = new Schema({
 // Internship Schema
 const ApplicationSchema = new Schema({
     applicationId: { type: String, required: true, unique: true },
-    internshipId: { type: String, required: true},
+    internshipId: { type: String, required: true },
     alumniId: { type: String, required: true },
     studentId: { type: String, required: true },
     status: {
@@ -29,6 +29,7 @@ const ApplicationSchema = new Schema({
     dateApplied: { type: Date, required: true, default: Date.now() },
     dateofAction: { type: Date },
     resume: { type: String, default: "" },
+    vectorEmbedding: [Number]
 });
 
 

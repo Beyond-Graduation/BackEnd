@@ -39,7 +39,7 @@ router.post("/login", async(req, res) => {
             res.status(400).json({ error: "User doesn't exist" });
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -82,7 +82,7 @@ router.post("/change_password", isLoggedIn, async(req, res) => {
             res.status(400).send("Incorrect Password");
         }
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -108,7 +108,6 @@ router.post("/forgot_password", async(req, res) => {
     let user = await User.findOne({ email: req.body.email }).lean();
     if (user) {
         const passwordResetToken = generateString(15);
-        console.log(passwordResetToken);
         const transporter = nodemailer.createTransport({
             service: "Gmail",
             auth: {
@@ -195,53 +194,24 @@ router.get("/getDetails/:userId", isLoggedIn, async(req, res) => {
     if (req.params.userId) {
         var curUserId = req.params.userId;
         res.json(
-            await User.findOne({ userId: curUserId }).catch((error) =>
+            await User.findOne({ userId: curUserId }).lean().catch((error) =>
                 res.status(400).json({ error })
             )
         );
     }
 });
 
-router.get("/getDetails/:userId", isLoggedIn, async (req, res) => {
-  const { User } = req.context.models;
-  if (req.params.userId) {
-    var curUserId = req.params.userId;
-    res.json(
-      await User.findOne({ userId: curUserId }).catch((error) =>
-        res.status(400).json({ error })
-      )
-    );
-  }
+router.get('/get_interest_list', isLoggedIn, async(req, res) => {
+    const { User } = req.context.models;
+    try {
+        const areasOfInterest = await User.distinct('areasOfInterest');
+        res.json({ areasOfInterest });
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
+    }
 });
 
-router.post("/python", async(req, res) => {
-    const { Blog } = req.context.models;
-    var spawn = require('child_process').spawn;
-    var process = spawn('python', ['./python_scripts/script.py',
-        req.body.blogId
-    ]);
-
-    let resultString = '';
-    let resultData = {};
-    // As the stdout data stream is chunked,
-    // we need to concat all the chunks.
-    process.stdout.on('data', function(stdData) {
-        resultString += stdData.toString();
-    });
-
-    process.stdout.on('end', async function() {
-
-        // Parse the string as JSON when stdout
-        // data stream ends
-        // resultData = JSON.parse(resultString);
-        // console.log(resultData);
-        // let blog = await Blog.updateOne({ blogId: req.body.blogId }, resultData);
-        console.log(resultString);
-        // res.json(resultData)
-
-    });
 
 
-});
 
 module.exports = router;

@@ -17,7 +17,8 @@ const higherStudiesSchema = new Schema({
 
 const workExperienceSchema = new Schema({
     from: { type: Number, min: 1943, max: ymax },
-    to: { type: Number, min: 1943, max: ymax },
+    to: { type: Number, min: 1943, max: ymax, default: null },
+    currentlyWorkingHere: { type: Boolean, default: 'true' },
     company: { type: String },
     role: { type: String },
     Contribution: { type: String }
@@ -29,6 +30,7 @@ const publicationsSchema = new Schema({
     link: { type: String },
     description: { type: String }
 })
+
 
 const AlumniSchema = new Schema({
     degree: { type: String, required: true },
