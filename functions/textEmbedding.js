@@ -3,7 +3,7 @@ const { loadWord2VecModel } = require("../functions/word2vecLoader");
 const natural = require('natural');
 const tokenizer = new natural.WordTokenizer();
 const stopwords = require('stopwords').english;
-
+const crawler = require('crawler-request');
 
 // Function to preprocess the text
 function preprocessText(text) {
@@ -57,4 +57,22 @@ async function performWord2VecEmbedding(content) {
 
 }
 
-module.exports = { preprocessText, performWord2VecEmbedding };
+
+
+async function pdfToText(url) {
+    try {
+        const response = await crawler(url);
+        const text = response.text;
+        const cleanedText = text.replace(/([a-z])([A-Z])/g, "$1 $2");
+        const finalText = cleanedText.replace(/[^a-zA-Z\s\d]/g, "");
+        return finalText;
+    } catch (error) {
+        console.error(error);
+        throw new Error("Failed to extract resume text.");
+    }
+}
+
+
+
+
+module.exports = { preprocessText, performWord2VecEmbedding, pdfToText };

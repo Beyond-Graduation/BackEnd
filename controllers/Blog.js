@@ -133,8 +133,7 @@ router.get("/recommend", isLoggedIn, async(req, res) => {
 
         res.json({ relatedArticles });
     } catch (error) {
-        console.error('Error in recommend route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -164,7 +163,7 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
         let blog = await Blog.create(req.body);
         res.send("Created");
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
