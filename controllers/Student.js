@@ -4,7 +4,8 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { generateCombinations } = require("../functions/customQueryConstraints.js");
-
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
+const { pdfToText } = require("../functions/textEmbedding.js");
 const router = Router(); // create router to create route bundle
 
 // Signup route to create a new user
@@ -27,8 +28,16 @@ router.post("/signup", async(req, res) => {
             } else {
                 // hash the password
                 req.body.password = await bcrypt.hash(req.body.password, 10);
-                req.body.updated = Date.now()
-                    // create a new user
+                req.body.updated = Date.now();
+                req.body.likedBlogs = [];
+                let profileText = await pdfToText(req.body.resume);
+                if (req.body.areasOfInterest) {
+                    const interestsString = req.body.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+
+                req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
+                // create a new user
                 await Student.create(req.body);
                 var user = await Student.findOne({ userId: req.body.userId }).lean();
                 const totalFields = 14
@@ -42,8 +51,7 @@ router.post("/signup", async(req, res) => {
                 req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
                 await Student.updateOne({ userId: user.userId }, req.body);
 
-                user = await Student.findOne({ userId: user.userId }).lean();
-                res.json(user);
+                res.json({ message: "Registration Successful" });
 
             }
         }
@@ -61,6 +69,19 @@ router.post("/update", isLoggedIn, async(req, res) => {
         var user = await Student.findOne({ userId: curUserId }).lean();
         req.body.updated = Date.now()
         if (user) {
+            if (req.body.resume || req.body.areasOfInterest) {
+
+
+                let profileText = "";
+                if (req.body.resume) {
+                    profileText = profileText + await pdfToText(req.body.resume);
+                }
+                if (req.body.areasOfInterest) {
+                    const interestsString = req.body.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+                req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
+            }
             await Student.updateOne({ userId: curUserId }, req.body);
             user = await Student.findOne({ userId: curUserId }).lean();
             console.log(user)
@@ -72,11 +93,9 @@ router.post("/update", isLoggedIn, async(req, res) => {
                     emptyFields++
                 }
             }
-            req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
-            await Student.updateOne({ userId: user.userId }, req.body);
-            // send updated user as response
-            user = await Student.findOne({ userId: curUserId });
-            res.json(user);
+            let profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
+            await Student.updateOne({ userId: user.userId }, { profileCompletionPerc: profileCompletionPerc });
+            res.json({ message: "Updation Successful!" });
         } else {
             res.status(400).json({ error: "Student doesn't exist" });
         }
