@@ -33,8 +33,8 @@ app.use(createContext); // create req.context
 loadWord2VecModel();
 // ROUTES AND ROUTES
 
-// TO fire every midnight IST
-cron.schedule('30 19 0 * * *', triggerCloseRoute, {
+// To fire every midnight IST
+cron.schedule('30 18 * * *', triggerCloseRoute, {
     timezone: 'UTC',
 });
 

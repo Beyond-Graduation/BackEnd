@@ -1,18 +1,17 @@
 const axios = require('axios');
 require("dotenv").config(); // load .env variables
 const { BACKEND_HOST_LINK } = process.env;
+const Internship = require("../models/Internship");
 const triggerCloseRoute = async() => {
     try {
-        const { Internship } = require("../models/Internship");
-
         const internships = await Internship.find({
             status: "open",
             deadline: {
                 $lte: new Date()
             },
-        }).lean();
+        }).select('internshipId alumniId role companyName deadline dateUploaded');
 
-        console.log("Internships found to be expired on ", Date.now(), internships);
+        console.log("Internships found to be expired on ", Date.now().toISOString(), internships);
 
         for (const internship of internships) {
             await axios.post(BACKEND_HOST_LINK + '/internship/close', {

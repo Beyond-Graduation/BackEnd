@@ -77,7 +77,7 @@ router.post("/change_password", isLoggedIn, async(req, res) => {
                 console.log("Sent :" + info.response);
             });
 
-            res.json(user);
+            res.json({ message: "Password Changed Successfully" });
         } else {
             res.status(400).send("Incorrect Password");
         }
@@ -179,7 +179,7 @@ router.post("/reset_password", async(req, res) => {
             console.log("Sent :" + info.response);
         });
 
-        res.json(user);
+        res.json({ message: "Password Reset Successfully" });
     } else {
         res
             .status(400)
