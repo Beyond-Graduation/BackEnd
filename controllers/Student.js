@@ -273,8 +273,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             console.log(curBookmarkBlogs)
             await Student.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
             // send updated user as response
-            const user = await Student.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Bookmarked Blog" });
 
         } else {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });

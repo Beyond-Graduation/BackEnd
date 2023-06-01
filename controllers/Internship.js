@@ -113,11 +113,11 @@ router.post("/close", isAlumniLoggedIn, async(req, res) => {
         }).lean();
         req.body.dateModified = Date.now();
         if (internship && internship.alumniId == curUserId) {
-            internship = await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
+            await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
                 { $set: { status: "closed" } } // update operation
             );
-            //console.log(internship);
-            res.json(internship);
+
+            res.json({ message: "Closed Internship" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",

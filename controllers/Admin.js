@@ -25,9 +25,9 @@ router.post("/signup", async(req, res) => {
             req.body.updated = Date.now();
             req.body.likedBlogs = []
                 // create a new user
-            const user = await Admin.create(req.body);
+            await Admin.create(req.body);
             // send new user as response
-            res.json(user);
+            res.json({ message: "Admin Profile Created, Pending Approval" });
         }
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
@@ -39,7 +39,6 @@ router.get("/pending_alumni_list", isAdminLoggedIn, async(req, res) => {
     const { AlumniPending } = req.context.models;
     if (req.query.department) {
         var dept = req.query.department
-        console.log("Department:", dept)
         res.json(
             await AlumniPending.find({ department: dept }).lean().sort({ dateJoined: -1 }).catch((error) =>
                 res.status(400).json({ error })
@@ -114,7 +113,7 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
 
-                res.json(updatedUser);
+                res.json({ message: "Approved User as Alumni" });
             }
 
         } else {
@@ -198,7 +197,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
             }
 
         }
-        res.json(updatedNotice);
+        res.json({ message: "Notice Approved" });
     }
 });
 
