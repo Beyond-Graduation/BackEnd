@@ -10,7 +10,7 @@ const router = Router(); // create router to create route bundle
 
 //DESTRUCTURE ENV VARIABLES WITH DEFAULTS
 const { SECRET = "secret" } = process.env;
-
+const { FRONTEND_HOST_LINK } = process.env;
 // Login route to verify a user and get a token
 // Single Login for all
 router.post("/login", async(req, res) => {
@@ -120,7 +120,7 @@ router.post("/forgot_password", async(req, res) => {
             to: req.body.email,
             subject: "BeGrad : Password Reset Link!",
             text: "Hi, \nFollowing your request to reset password to login, we have generated a unique password reset link below:\n" +
-                "http://65.20.82.203/reset_password/" +
+                FRONTEND_HOST_LINK + "/reset_password/" +
                 passwordResetToken +
                 "  \nKindly click on the link quickly to reset your password.\n\nRegards,\nBeyond Graduation,\nCETAA",
         };

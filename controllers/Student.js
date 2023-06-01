@@ -6,6 +6,8 @@ const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom midd
 const { generateCombinations } = require("../functions/customQueryConstraints.js");
 const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 const { pdfToText } = require("../functions/textEmbedding.js");
+const cron = require('node-cron');
+const axios = require('axios');
 const router = Router(); // create router to create route bundle
 
 // Signup route to create a new user
@@ -151,7 +153,7 @@ router.get("/student_list", isLoggedIn, async(req, res) => {
     // }
 
     try {
-        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+        let sortOptions = {};
 
         // Sort by Name A to Z
         if (req.query.sort === "a_to_z") {
