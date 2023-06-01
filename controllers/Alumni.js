@@ -197,7 +197,7 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
     }
 
     try {
-        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+        let sortOptions = {};
 
         // Sort by Name A to Z
         if (req.query.sort === "a_to_z") {

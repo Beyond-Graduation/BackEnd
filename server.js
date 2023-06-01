@@ -14,6 +14,8 @@ const AdminRouter = require("./controllers/Admin");
 const NoticeRouter = require("./controllers/Notice");
 const InternshipRouter = require("./controllers/Internship");
 const { loadWord2VecModel } = require("./functions/word2vecLoader");
+const { triggerCloseRoute } = require('./functions/cronFunctions');
+const cron = require('node-cron');
 
 // DESTRUCTURE ENV VARIABLES WITH DEFAULT VALUES
 const { PORT = 3000 } = process.env;
@@ -30,9 +32,16 @@ app.use(createContext); // create req.context
 
 loadWord2VecModel();
 // ROUTES AND ROUTES
+
+cron.schedule('0 0 0 * * *', triggerCloseRoute, {
+    timezone: 'Asia/Kolkata', // Set timezone to IST
+});
+
 app.get("/", (req, res) => {
     res.send("server is working");
 });
+
+
 // app.use("/user", UserRouter) // send all "/user" requests to UserRouter for routing
 // app.use("/todos", TodoRouter) // send all "/todos" request to TodoROuter
 app.use("/alumni", AlumniRouter); // send all "/alumni" request to AlumniROuter
@@ -45,25 +54,3 @@ app.use("/internship", InternshipRouter);
 
 // APP LISTENER
 app.listen(PORT, () => log.green("SERVER STATUS", `Listening on port ${PORT}`));
-
-
-// loadWord2VecModel().then(() => {
-//     // ROUTES AND ROUTES
-//     app.get("/", (req, res) => {
-//         res.send("server is working");
-//     });
-//     // app.use("/user", UserRouter) // send all "/user" requests to UserRouter for routing
-//     // app.use("/todos", TodoRouter) // send all "/todos" request to TodoROuter
-//     app.use("/alumni", AlumniRouter); // send all "/alumni" request to AlumniROuter
-//     app.use("/blog", BlogRouter); // send all "/Blog" request to BlogROuter
-//     app.use("/student", StudentRouter);
-//     app.use("/user", UserRouter);
-//     app.use("/admin", AdminRouter);
-//     app.use("/notice", NoticeRouter);
-//     app.use("/internship", InternshipRouter);
-
-//     // APP LISTENER
-//     app.listen(PORT, () => log.green("SERVER STATUS", `Listening on port ${PORT}`));
-// }).catch((error) => {
-//     console.error('Failed to load the GloVe model:', error);
-// });
