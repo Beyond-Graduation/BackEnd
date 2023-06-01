@@ -8,8 +8,7 @@ const triggerCloseRoute = async() => {
         const internships = await Internship.find({
             status: "open",
             deadline: {
-                $gte: new Date().setHours(0, 0, 0, 0),
-                $lt: new Date().setHours(23, 59, 59, 999),
+                $lte: new Date()
             },
         }).lean();
 
