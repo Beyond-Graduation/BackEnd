@@ -109,7 +109,7 @@ router.post("/update", isLoggedIn, async(req, res) => {
 
 router.get("/student_list", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -124,11 +124,9 @@ router.get("/student_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });

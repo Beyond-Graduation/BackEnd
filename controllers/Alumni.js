@@ -153,7 +153,7 @@ router.post("/delete", async(req, res) => {
 
 router.get("/alumni_list", isLoggedIn, async(req, res) => {
     const { Alumni } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -168,11 +168,9 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });
@@ -187,14 +185,21 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
     // Year of Graduation Before Filter
     if (req.query.yearBefore) {
         const yearBefore = parseInt(req.query.yearBefore);
-        query.yearGraduation = { $lt: yearBefore };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$lt = yearBefore;
     }
 
     // Year of Graduation After Filter
     if (req.query.yearAfter) {
         const yearAfter = parseInt(req.query.yearAfter);
-        query.yearGraduation = { $gt: yearAfter };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$gt = yearAfter;
     }
+
 
     try {
         let sortOptions = {};
@@ -219,7 +224,7 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
             sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
         }
 
-        const alumniList = await Alumni.find(query)
+        const alumniList = await Alumni.find(query, { vectorEmbedding: 0, blogClicks: 0 })
             .lean()
             .collation({ locale: "en" })
             .sort(sortOptions)
