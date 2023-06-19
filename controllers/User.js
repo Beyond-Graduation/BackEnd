@@ -5,12 +5,12 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 // const User = require("../models/User");
-
+const cosineSimilarity = require('cosine-similarity');
 const router = Router(); // create router to create route bundle
 
 //DESTRUCTURE ENV VARIABLES WITH DEFAULTS
 const { SECRET = "secret" } = process.env;
-
+const { FRONTEND_HOST_LINK } = process.env;
 // Login route to verify a user and get a token
 // Single Login for all
 router.post("/login", async(req, res) => {
@@ -33,7 +33,7 @@ router.post("/login", async(req, res) => {
                 );
                 res.json({ token: token, userId: user.userId, userType: user.__t });
             } else {
-                res.status(400).json({ error: "password doesn't match" });
+                res.status(400).json({ error: "Incorrect Password" });
             }
         } else {
             res.status(400).json({ error: "User doesn't exist" });
@@ -77,7 +77,7 @@ router.post("/change_password", isLoggedIn, async(req, res) => {
                 console.log("Sent :" + info.response);
             });
 
-            res.json(user);
+            res.json({ message: "Password Changed Successfully" });
         } else {
             res.status(400).send("Incorrect Password");
         }
@@ -120,7 +120,7 @@ router.post("/forgot_password", async(req, res) => {
             to: req.body.email,
             subject: "BeGrad : Password Reset Link!",
             text: "Hi, \nFollowing your request to reset password to login, we have generated a unique password reset link below:\n" +
-                "http://65.20.82.203/reset_password/" +
+                FRONTEND_HOST_LINK + "/reset_password/" +
                 passwordResetToken +
                 "  \nKindly click on the link quickly to reset your password.\n\nRegards,\nBeyond Graduation,\nCETAA",
         };
@@ -179,7 +179,7 @@ router.post("/reset_password", async(req, res) => {
             console.log("Sent :" + info.response);
         });
 
-        res.json(user);
+        res.json({ message: "Password Reset Successfully" });
     } else {
         res
             .status(400)
@@ -206,6 +206,72 @@ router.get('/get_interest_list', isLoggedIn, async(req, res) => {
     try {
         const areasOfInterest = await User.distinct('areasOfInterest');
         res.json({ areasOfInterest });
+    } catch (error) {
+        res.status(400).json({ error: `Error : ${error.message}` });
+    }
+});
+
+
+router.get('/get_similar_profiles', isLoggedIn, async(req, res) => {
+    const { User } = req.context.models;
+    const { Student } = req.context.models;
+    const { Alumni } = req.context.models;
+    const curUserId = req.user.userId;
+    try {
+        const curUserId = req.user.userId;
+        const currentUser = await User.findOne({ userId: curUserId }).select('vectorEmbedding resume');
+        if (currentUser.resume) {
+            if (!currentUser) {
+                throw new Error('Current user not found');
+            }
+
+            const students = await Student.find({ userId: { $ne: curUserId }, vectorEmbedding: { $ne: null } }).select('userId firstName lastName profilePicPath department expectedGraduationYear areasOfInterest vectorEmbedding');
+
+            // Calculate cosine similarity for all students
+            const student_similarities = students.map(student => ({
+                userId: student.userId,
+                firstName: student.firstName,
+                lastName: student.lastName,
+                profilePicPath: student.profilePicPath,
+                department: student.department,
+                expectedGraduationYear: student.expectedGraduationYear,
+                areasOfInterest: student.areasOfInterest,
+                similarity: cosineSimilarity(currentUser.vectorEmbedding, student.vectorEmbedding)
+            }));
+
+            // Sort the students based on similarity in descending order
+            student_similarities.sort((a, b) => b.similarity - a.similarity);
+
+            // Get the top 5 most similar students
+            const similar_students = student_similarities.slice(0, 5);
+
+            const alumnis = await Alumni.find({ userId: { $ne: curUserId }, vectorEmbedding: { $ne: null } }).select('userId firstName lastName profilePicPath department yearGraduation areasOfInterest vectorEmbedding');
+
+            // Calculate cosine similarity for all alumni
+            const alumni_similarities = alumnis.map(alumni => ({
+                userId: alumni.userId,
+                firstName: alumni.firstName,
+                lastName: alumni.lastName,
+                profilePicPath: alumni.profilePicPath,
+                department: alumni.department,
+                yearGraduation: alumni.yearGraduation,
+                areasOfInterest: alumni.areasOfInterest,
+                similarity: cosineSimilarity(currentUser.vectorEmbedding, alumni.vectorEmbedding)
+            }));
+
+            // Sort the alumni based on similarity in descending order
+            alumni_similarities.sort((a, b) => b.similarity - a.similarity);
+
+            // Get the top 5 most similar alumni
+            const similar_alumni = alumni_similarities.slice(0, 5);
+
+            res.json({
+                similar_students: similar_students,
+                similar_alumni: similar_alumni
+            });
+        } else {
+            res.status(200).json({ message: "Current user doesn't have resume" });
+        }
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
     }

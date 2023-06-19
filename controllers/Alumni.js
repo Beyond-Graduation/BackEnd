@@ -5,6 +5,8 @@ const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { generateCombinations } = require("../functions/customQueryConstraints.js");
 const router = Router(); // create router to create route bundle
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
+const { pdfToText } = require("../functions/textEmbedding.js");
 
 
 
@@ -38,7 +40,17 @@ router.post("/signup", async(req, res) => {
                     req.body.password = await bcrypt.hash(req.body.password, 10);
                     req.body.updated = Date.now();
                     req.body.likedBlogs = [];
-                    // create a new user
+
+
+                    // A profile is described by Resume and Areas Of interest
+                    // Getting the Resume Text
+                    let profileText = await pdfToText(req.body.resume);
+                    if (req.body.areasOfInterest) {
+                        const interestsString = req.body.areasOfInterest.join(" ");
+                        profileText = profileText + " " + interestsString;
+                    }
+
+                    req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
                     await AlumniPending.create(req.body);
                     var user = await AlumniPending.findOne({ userId: req.body.userId }).lean();
                     const totalFields = 14;
@@ -55,8 +67,7 @@ router.post("/signup", async(req, res) => {
                     );
                     await AlumniPending.updateOne({ userId: user.userId }, req.body);
 
-                    user = await AlumniPending.findOne({ userId: user.userId }).lean();
-                    res.json(user);
+                    res.json({ message: "Registration Successful" });
 
                 }
 
@@ -80,7 +91,20 @@ router.post("/update", isLoggedIn, async(req, res) => {
         var user = await Alumni.findOne({ userId: curUserId }).lean();
         req.body.updated = Date.now();
         if (user) {
-            //check if password matches
+
+            if (req.body.resume || req.body.areasOfInterest) {
+
+
+                let profileText = "";
+                if (req.body.resume) {
+                    profileText = profileText + await pdfToText(req.body.resume);
+                }
+                if (req.body.areasOfInterest) {
+                    const interestsString = req.body.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+                req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
+            }
             await Alumni.updateOne({ userId: curUserId }, req.body);
             var user = await Alumni.findOne({ userId: curUserId }).lean();
             console.log(user);
@@ -92,13 +116,13 @@ router.post("/update", isLoggedIn, async(req, res) => {
                     emptyFields++;
                 }
             }
-            req.body.profileCompletionPerc = parseInt(
+            let profileCompletionPerc = parseInt(
                 100 - (emptyFields / totalFields) * 100
             );
-            await Alumni.updateOne({ userId: user.userId }, req.body);
+            await Alumni.updateOne({ userId: user.userId }, { profileCompletionPerc: profileCompletionPerc });
             // send updated user as response
             user = await Alumni.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Updation Successful!" });
         } else {
             res.status(400).json({ error: "Alumni doesn't exist" });
         }
@@ -129,7 +153,7 @@ router.post("/delete", async(req, res) => {
 
 router.get("/alumni_list", isLoggedIn, async(req, res) => {
     const { Alumni } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -144,11 +168,9 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });
@@ -163,17 +185,24 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
     // Year of Graduation Before Filter
     if (req.query.yearBefore) {
         const yearBefore = parseInt(req.query.yearBefore);
-        query.yearGraduation = { $lt: yearBefore };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$lt = yearBefore;
     }
 
     // Year of Graduation After Filter
     if (req.query.yearAfter) {
         const yearAfter = parseInt(req.query.yearAfter);
-        query.yearGraduation = { $gt: yearAfter };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$gt = yearAfter;
     }
 
+
     try {
-        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+        let sortOptions = {};
 
         // Sort by Name A to Z
         if (req.query.sort === "a_to_z") {
@@ -195,7 +224,7 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
             sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
         }
 
-        const alumniList = await Alumni.find(query)
+        const alumniList = await Alumni.find(query, { vectorEmbedding: 0, blogClicks: 0 })
             .lean()
             .collation({ locale: "en" })
             .sort(sortOptions)
@@ -247,9 +276,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             curBookmarkBlogs.push(newblogId);
             console.log(curBookmarkBlogs);
             await Alumni.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
-            // send updated user as response
-            const user = await Alumni.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Bookmarked the blog" });
         } else {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }

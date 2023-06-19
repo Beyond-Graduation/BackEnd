@@ -5,8 +5,8 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isAdminLoggedIn } = require("./middleware");
 const router = Router(); // create router to create route bundle
-
-
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
+const { pdfToText } = require("../functions/textEmbedding.js");
 
 // Signup route to create a new user
 router.post("/signup", async(req, res) => {
@@ -25,9 +25,9 @@ router.post("/signup", async(req, res) => {
             req.body.updated = Date.now();
             req.body.likedBlogs = []
                 // create a new user
-            const user = await Admin.create(req.body);
+            await Admin.create(req.body);
             // send new user as response
-            res.json(user);
+            res.json({ message: "Admin Profile Created, Pending Approval" });
         }
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
@@ -39,7 +39,6 @@ router.get("/pending_alumni_list", isAdminLoggedIn, async(req, res) => {
     const { AlumniPending } = req.context.models;
     if (req.query.department) {
         var dept = req.query.department
-        console.log("Department:", dept)
         res.json(
             await AlumniPending.find({ department: dept }).lean().sort({ dateJoined: -1 }).catch((error) =>
                 res.status(400).json({ error })
@@ -114,7 +113,7 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
 
-                res.json(updatedUser);
+                res.json({ message: "Approved User as Alumni" });
             }
 
         } else {
@@ -198,7 +197,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
             }
 
         }
-        res.json(updatedNotice);
+        res.json({ message: "Notice Approved" });
     }
 });
 
@@ -231,12 +230,81 @@ router.get("/stats", isAdminLoggedIn, async(req, res) => {
 });
 
 
+
+
 router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
-    const { Alumni } = req.context.models;
+    try {
+        const { Alumni } = req.context.models;
+        const { AlumniPending } = req.context.models;
+        const { Student } = req.context.models;
 
-    await Alumni.updateMany({ "workExperience": { $elemMatch: { to: { $in: [2022, 2023] } } } }, { $set: { "workExperience.$[exp].to": null, "workExperience.$[exp].currentlyWorkingHere": true } }, { arrayFilters: [{ "exp.to": { $in: [2022, 2023] } }] });
+        let alumniRecords = await Alumni.find({});
+        let updatePromises = [];
 
-    res.send("Updated");
+        for (const alumniRecord of alumniRecords) {
+            let vectorEmbedding;
+            if (alumniRecord.resume) {
+                let profileText = await pdfToText(alumniRecord.resume);
+                if (alumniRecord.areasOfInterest) {
+                    const interestsString = alumniRecord.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+
+                vectorEmbedding = await performWord2VecEmbedding(profileText);
+            } else {
+                console.log("{userId:", alumniRecord.userId, "}");
+            }
+            await Alumni.updateOne({ userId: alumniRecord.userId }, { $set: { vectorEmbedding: vectorEmbedding } });
+        }
+
+        console.log("All alumni records updated successfully.");
+
+
+        alumniRecords = await AlumniPending.find({});
+        updatePromises = [];
+
+        for (const alumniRecord of alumniRecords) {
+            let vectorEmbedding;
+            if (alumniRecord.resume) {
+                let profileText = await pdfToText(alumniRecord.resume);
+                if (alumniRecord.areasOfInterest) {
+                    const interestsString = alumniRecord.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+
+                vectorEmbedding = await performWord2VecEmbedding(profileText);
+            } else {
+                console.log("{userId:", alumniRecord.userId, "}");
+            }
+            await AlumniPending.updateOne({ userId: alumniRecord.userId }, { $set: { vectorEmbedding: vectorEmbedding } });
+        }
+        console.log("All alumni pending records updated successfully.");
+
+
+        alumniRecords = await Student.find({});
+        updatePromises = [];
+
+        for (const alumniRecord of alumniRecords) {
+            let vectorEmbedding;
+            if (alumniRecord.resume) {
+                let profileText = await pdfToText(alumniRecord.resume);
+                if (alumniRecord.areasOfInterest) {
+                    const interestsString = alumniRecord.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+
+                vectorEmbedding = await performWord2VecEmbedding(profileText);
+            } else {
+                console.log("{userId:", alumniRecord.userId, "}");
+            }
+            await Student.updateOne({ userId: alumniRecord.userId }, { $set: { vectorEmbedding: vectorEmbedding } });
+        }
+        console.log("All student records updated successfully.");
+        res.json({ message: "Updated All" })
+    } catch (error) {
+        console.error(error);
+        res.status(400);
+    }
 });
 
 

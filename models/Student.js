@@ -41,7 +41,8 @@ const StudentSchema = new Schema({
     favAlumId: [String],
     internships: { type: [internshipSchema] },
     projects: { type: [projectSchema] },
-    profileCompletionPerc: { type: Number, min: 0.0, max: 100.0, default: 10.0, required: true }
+    profileCompletionPerc: { type: Number, min: 0.0, max: 100.0, default: 10.0, required: true },
+    vectorEmbedding: [Number]
 });
 
 // const User = model("User", UserSchema)

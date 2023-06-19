@@ -1,12 +1,15 @@
 const ExcelJS = require('exceljs');
 const { DateTime } = require('luxon');
 const { Router } = require("express"); // import Router from express
-
+const nodemailer = require('nodemailer'); // import nodemailer to send emails
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn custom middleware
 const { isStudentLoggedIn } = require("./middleware"); // import isStudentLoggedIn custom middleware
 const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
-
+const { pdfToText } = require("../functions/textEmbedding.js");
+const { htmlToText } = require('html-to-text');
+require("dotenv").config(); // load .env variables
+const cosineSimilarity = require('cosine-similarity');
 const router = Router();
 
 // generate internshipId
@@ -27,19 +30,17 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
             req.body.email = user.email;
         }
         // Convert HTML to plain text
-        const plainTextContent = htmlToText(req.body.description);
+        const plainTextContent = htmlToText(req.body.description) + " " + req.body.role;
         // Embed the blog content using Word2Vec
         const vectorEmbedding = await performWord2VecEmbedding(plainTextContent);
 
         // Add the embedded vector to the request body
         req.body.vectorEmbedding = vectorEmbedding;
         // pick email from front end
-
-        res.json(
-            await Internship.create(req.body).catch((error) =>
-                res.status(400).json({ error })
-            )
+        await Internship.create(req.body).catch((error) =>
+            res.status(400).json({ error })
         );
+        res.json({ message: "Internship Created" });
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
     }
@@ -112,11 +113,11 @@ router.post("/close", isAlumniLoggedIn, async(req, res) => {
         }).lean();
         req.body.dateModified = Date.now();
         if (internship && internship.alumniId == curUserId) {
-            internship = await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
+            await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
                 { $set: { status: "closed" } } // update operation
             );
-            //console.log(internship);
-            res.json(internship);
+
+            res.json({ message: "Closed Internship" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
@@ -134,7 +135,7 @@ router.get('/compile', async(req, res) => {
     const { Internship } = req.context.models;
     try {
 
-        const applications = await Application.find({ internshipId: req.query.internshipId }).sort({ dateApplied: 1 }).lean();
+        let applications = await Application.find({ internshipId: req.query.internshipId }).sort({ dateApplied: 1 }).lean();
         const internship = await Internship.findOne({ internshipId: req.query.internshipId }).lean();
 
         const workbook = new ExcelJS.Workbook();
@@ -155,7 +156,25 @@ router.get('/compile', async(req, res) => {
         headlineCell.font = { bold: true, size: 20 };
         // Blank Row
         worksheet.addRow(['Posted By ', internship.firstName, internship.lastName]);
-        worksheet.addRow([]);
+        if (req.query.recommendation) {
+            worksheet.addRow([]);
+            worksheet.addRow(['Resumes ranked based on recommendation']);
+            worksheet.addRow([]);
+
+            // Calculate cosine similarity for all articles
+            const similarities = applications.map(application => ({
+                ...application,
+                similarity: cosineSimilarity(internship.vectorEmbedding, application.vectorEmbedding)
+            }));
+            // Sort the articles based on similarity in descending order
+            similarities.sort((a, b) => b.similarity - a.similarity);
+            applications = similarities;
+            console.log(applications);
+
+        } else {
+            worksheet.addRow([]);
+        }
+
         // Extract headers from the qnas field
         const headers = applications[0].qnas.map(qna => qna.question);
 
@@ -213,6 +232,7 @@ router.get('/compile', async(req, res) => {
 // withdraw the opportunity
 router.post("/withdraw", isAlumniLoggedIn, async(req, res) => {
     const { Internship } = req.context.models;
+    const { Application } = req.context.models;
     const curUserId = req.user.userId;
     try {
         var internship = await Internship.findOne({
@@ -220,11 +240,36 @@ router.post("/withdraw", isAlumniLoggedIn, async(req, res) => {
         }).lean();
         req.body.dateModified = Date.now();
         if (internship && internship.alumniId == curUserId) {
-            internship = await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
+            const applications = await Application.find({ internshipId: req.body.internshipId }, 'email').lean();
+            const applicantEmails = applications.map(application => application.email);
+            const transporter = nodemailer.createTransport({
+                service: "Gmail",
+                auth: {
+                    user: process.env.MAIL_ID,
+                    pass: process.env.MAIL_PASSWORD
+                }
+            });
+            const options = {
+                from: process.env.MAIL_ID,
+                to: applicantEmails,
+                subject: internship.role + " - " + internship.companyName + " opportunity has been withdrawn",
+                text: "Hi,\n We regret to inform you that the  " + internship.role + " opportunity by " + internship.companyName + " has been withdrawn. Kindly check Internship Board for more opportunities. We wish you all the best for the opportunities ahead.\n\nRegards,\nBeyond Graduation,\nCETAA"
+            }
+            transporter.sendMail(options, function(err, info) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                console.log("Sent Withdraw Email :" + info.response)
+            })
+
+            await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
                 { $set: { status: "withdrawn" } } // update operation
             );
-            //console.log(internship);
-            res.json(internship);
+            await Application.deleteMany({ internshipId: req.body.internshipId });
+
+
+            res.json({ message: "Internsip has been Withdrawn" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
@@ -247,11 +292,11 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
         req.body.dateModified = Date.now();
 
         if (internship && internship.alumniId == curUserId) {
-            internship = await Internship.updateOne({ internshipId: req.body.internshipId },
+            await Internship.updateOne({ internshipId: req.body.internshipId },
                 req.body
             );
-            console.log(internship);
-            res.json(internship);
+
+            res.json({ message: "Internship Updated" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
@@ -268,34 +313,56 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
     const { Application } = req.context.models;
     const { Internship } = req.context.models;
     const { User } = req.context.models;
-    const curUserId = req.user.userId;
-    const user = await User.findOne({ userId: curUserId }).lean(); // get username from req.user property created by isLoggedIn middleware
-    req.body.studentId = curUserId; // add userId property to req.body
-    req.body.firstName = user.firstName;
-    req.body.lastName = user.lastName;
-    req.body.status = "applied";
-    req.body.degree = user.degree;
-    req.body.branch = user.department;
-    req.body.expectedGraduationYear = user.expectedGraduationYear;
-    if (!req.body.resume) {
-        req.body.resume = user.resume;
-    }
-    req.body.dateApplied = Date.now();
-
-    var internship = await Internship.findOne({
-        internshipId: req.body.internshipId,
-    }).lean();
-
-    if (internship.status == "open") {
-        req.body.alumniId = internship.alumniId;
-        // pick email,phone number, cgpa from front end
-        try {
-            res.json(await Application.create(req.body));
-        } catch (error) {
-            res.status(400).json({ error });
+    try {
+        const curUserId = req.user.userId;
+        const user = await User.findOne({ userId: curUserId }).lean(); // get username from req.user property created by isLoggedIn middleware
+        req.body.studentId = curUserId; // add userId property to req.body
+        req.body.firstName = user.firstName;
+        req.body.lastName = user.lastName;
+        req.body.status = "applied";
+        req.body.degree = user.degree;
+        req.body.branch = user.department;
+        req.body.expectedGraduationYear = user.expectedGraduationYear;
+        if (!req.body.resume) {
+            req.body.resume = user.resume;
         }
-    } else {
-        res.status(400).send("Opportunity is Closed, Can't accept applications!");
+        req.body.dateApplied = Date.now();
+
+
+        var internship = await Internship.findOne({
+            internshipId: req.body.internshipId,
+        }).lean();
+
+        if (internship.status == "open") {
+            req.body.alumniId = internship.alumniId;
+            let resumeText = await pdfToText(req.body.resume);
+            // Create an array to store the text strings
+            let textStrings = [];
+
+            // Add the resume text to the array
+            textStrings.push(resumeText);
+
+            // Loop through each answer in the qnas array
+            req.body.qnas.forEach((qna) => {
+                // Add the answer text to the array
+                textStrings.push(qna.answer);
+            });
+
+            // Combine all the text strings into a single string
+            const combinedText = textStrings.join(' ');
+
+            req.body.vectorEmbedding = await performWord2VecEmbedding(combinedText);
+
+            // pick email,phone number, cgpa from front end
+
+            await Application.create(req.body);
+            res.json({ message: "Application Successful" });
+
+        } else {
+            res.status(400).send("Opportunity is Closed, Can't accept applications!");
+        }
+    } catch (error) {
+        res.status(400).json({ error });
     }
 
 });

@@ -4,7 +4,10 @@ const bcrypt = require("bcryptjs"); // import bcrypt to hash passwords
 const jwt = require("jsonwebtoken"); // import jwt to sign tokens
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 const { generateCombinations } = require("../functions/customQueryConstraints.js");
-
+const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
+const { pdfToText } = require("../functions/textEmbedding.js");
+const cron = require('node-cron');
+const axios = require('axios');
 const router = Router(); // create router to create route bundle
 
 // Signup route to create a new user
@@ -27,8 +30,16 @@ router.post("/signup", async(req, res) => {
             } else {
                 // hash the password
                 req.body.password = await bcrypt.hash(req.body.password, 10);
-                req.body.updated = Date.now()
-                    // create a new user
+                req.body.updated = Date.now();
+                req.body.likedBlogs = [];
+                let profileText = await pdfToText(req.body.resume);
+                if (req.body.areasOfInterest) {
+                    const interestsString = req.body.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+
+                req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
+                // create a new user
                 await Student.create(req.body);
                 var user = await Student.findOne({ userId: req.body.userId }).lean();
                 const totalFields = 14
@@ -42,8 +53,7 @@ router.post("/signup", async(req, res) => {
                 req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
                 await Student.updateOne({ userId: user.userId }, req.body);
 
-                user = await Student.findOne({ userId: user.userId }).lean();
-                res.json(user);
+                res.json({ message: "Registration Successful" });
 
             }
         }
@@ -61,6 +71,19 @@ router.post("/update", isLoggedIn, async(req, res) => {
         var user = await Student.findOne({ userId: curUserId }).lean();
         req.body.updated = Date.now()
         if (user) {
+            if (req.body.resume || req.body.areasOfInterest) {
+
+
+                let profileText = "";
+                if (req.body.resume) {
+                    profileText = profileText + await pdfToText(req.body.resume);
+                }
+                if (req.body.areasOfInterest) {
+                    const interestsString = req.body.areasOfInterest.join(" ");
+                    profileText = profileText + " " + interestsString;
+                }
+                req.body.vectorEmbedding = await performWord2VecEmbedding(profileText);
+            }
             await Student.updateOne({ userId: curUserId }, req.body);
             user = await Student.findOne({ userId: curUserId }).lean();
             console.log(user)
@@ -72,11 +95,9 @@ router.post("/update", isLoggedIn, async(req, res) => {
                     emptyFields++
                 }
             }
-            req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
-            await Student.updateOne({ userId: user.userId }, req.body);
-            // send updated user as response
-            user = await Student.findOne({ userId: curUserId });
-            res.json(user);
+            let profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
+            await Student.updateOne({ userId: user.userId }, { profileCompletionPerc: profileCompletionPerc });
+            res.json({ message: "Updation Successful!" });
         } else {
             res.status(400).json({ error: "Student doesn't exist" });
         }
@@ -88,7 +109,7 @@ router.post("/update", isLoggedIn, async(req, res) => {
 
 router.get("/student_list", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -103,11 +124,9 @@ router.get("/student_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });
@@ -132,7 +151,7 @@ router.get("/student_list", isLoggedIn, async(req, res) => {
     // }
 
     try {
-        let sortOptions = { firstName: 1, lastName: 1, dateJoined: -1, updated: 1 };
+        let sortOptions = {};
 
         // Sort by Name A to Z
         if (req.query.sort === "a_to_z") {
@@ -252,8 +271,7 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             console.log(curBookmarkBlogs)
             await Student.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
             // send updated user as response
-            const user = await Student.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Bookmarked Blog" });
 
         } else {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });

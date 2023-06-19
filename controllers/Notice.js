@@ -14,11 +14,10 @@ router.post("/create", isLoggedIn, async(req, res) => {
         req.body.userId = curUserId; // add userId property to req.body
         req.body.firstName = user.firstName
         req.body.lastName = user.lastName
-        res.json(
-            await Notice.create(req.body).catch((error) =>
-                res.status(400).json({ error })
-            )
+        await Notice.create(req.body).catch((error) =>
+            res.status(400).json({ error })
         );
+        res.json({ message: "Admin Created Notice" });
 
     } else if (req.user.userType == "Alumni") {
         const { NoticePending } = req.context.models;
@@ -29,11 +28,10 @@ router.post("/create", isLoggedIn, async(req, res) => {
         req.body.userId = curUserId; // add userId property to req.body
         req.body.firstName = user.firstName
         req.body.lastName = user.lastName
-        res.json(
-            await NoticePending.create(req.body).catch((error) =>
-                res.status(400).json({ error })
-            )
+        await NoticePending.create(req.body).catch((error) =>
+            res.status(400).json({ error })
         );
+        res.json({ message: "Alumni Created Notice, Approval Pending" });
     } else {
         res.status(400).json({ error: curUserId + " do not have the permission to publish notices. " });
     }

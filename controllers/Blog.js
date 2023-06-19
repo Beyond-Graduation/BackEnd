@@ -133,8 +133,7 @@ router.get("/recommend", isLoggedIn, async(req, res) => {
 
         res.json({ relatedArticles });
     } catch (error) {
-        console.error('Error in recommend route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -164,7 +163,7 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
         let blog = await Blog.create(req.body);
         res.send("Created");
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
 
@@ -234,13 +233,13 @@ router.post("/like", isLoggedIn, async(req, res) => {
         // check if the user exists
         if (user.likedBlogs.includes(req.body.blogId) == false) {
             blog.likes++;
-            console.log(blog.likes);
 
             user.likedBlogs.push(req.body.blogId);
             await User.updateOne({ userId: curUserId }, { likedBlogs: user.likedBlogs });
             user = await User.findOne({ userId: curUserId }).lean();
             await Blog.updateOne({ blogId: req.body.blogId }, { likes: blog.likes });
             blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
+            res.json({ message: "Liked Blog" });
             // console.log(user.userId,user.likedBlogs)
         }
         // else{
@@ -256,8 +255,9 @@ router.post("/like", isLoggedIn, async(req, res) => {
             user = await User.findOne({ userId: curUserId }).lean();
             await Blog.updateOne({ blogId: req.body.blogId }, { likes: blog.likes });
             blog = await Blog.findOne({ blogId: req.body.blogId }).lean();
+            res.json({ message: "Disliked Blog" });
         }
-        res.json(user);
+
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
     }
@@ -279,12 +279,12 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             await User.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
             // send updated user as response
             const user = await User.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Bookmarked Blog" });
         } else {
             curBookmarkBlogs = curBookmarkBlogs.filter((x) => x !== newblogId);
             await User.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
             const user = await User.findOne({ userId: curUserId });
-            res.json(user);
+            res.json({ message: "Removed Blog from Bookmarks" });
         }
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
@@ -311,11 +311,11 @@ router.post("/addComments", isLoggedIn, async(req, res) => {
             parentComment.childCommentCount++;
             await BlogComments.updateOne({ commentId: req.body.parent }, { childCommentCount: parentComment.childCommentCount });
         }
-        res.json(
-            await BlogComments.create(req.body).catch((error) =>
-                res.status(400).json({ error })
-            )
+
+        await BlogComments.create(req.body).catch((error) =>
+            res.status(400).json({ error })
         );
+        res.json({ message: "Added Comment" });
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
     }

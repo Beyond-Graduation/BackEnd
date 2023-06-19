@@ -49,7 +49,8 @@ const AlumniSchema = new Schema({
         type: [publicationsSchema],
         default: null
     },
-    profileCompletionPerc: { type: Number, min: 0.0, max: 100.0, default: 10.0, required: true }
+    profileCompletionPerc: { type: Number, min: 0.0, max: 100.0, default: 10.0, required: true },
+    vectorEmbedding: [Number]
 });
 
 
