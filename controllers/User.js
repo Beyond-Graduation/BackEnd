@@ -33,7 +33,7 @@ router.post("/login", async(req, res) => {
                 );
                 res.json({ token: token, userId: user.userId, userType: user.__t });
             } else {
-                res.status(400).json({ error: "Incorrect Password" });
+                res.status(400).json({ error: "password doesn't match" });
             }
         } else {
             res.status(400).json({ error: "User doesn't exist" });
