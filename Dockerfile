@@ -8,7 +8,6 @@ WORKDIR /app
 # Copy all files except the node modules folder
 COPY . /app
 RUN rm -rf /app/node_modules
-RUN cat /app/embeddings/glove.6B/embedding_* > /app/embeddings/glove.6B/glove.6B.200d.txt
 
 # Install pip modules
 COPY requirements.txt /app/requirements.txt
