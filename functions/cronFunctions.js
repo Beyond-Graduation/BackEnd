@@ -12,8 +12,8 @@ const triggerCloseRoute = async() => {
         }).select('internshipId alumniId role companyName deadline dateUploaded');
 
         console.log("Internships found to be expired on ", Date.now().toISOString(), internships);
-
-        await Internship.updateMany({ internshipId: { $in: internships } }, // filter criteria using $in operator
+        const internshipIds = internships.map(internship => internship.internshipId);
+        await Internship.updateMany({ internshipId: { $in: internshipIds } }, // filter criteria using $in operator
             { $set: { status: "closed" } } // update operation
         );
     } catch (error) {

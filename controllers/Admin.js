@@ -7,7 +7,7 @@ const { isAdminLoggedIn } = require("./middleware");
 const router = Router(); // create router to create route bundle
 const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 const { pdfToText } = require("../functions/textEmbedding.js");
-
+const { htmlToText } = require('html-to-text');
 const logger = require("../logging/logger")
 
 // Signup route to create a new user
@@ -29,7 +29,7 @@ router.post("/signup", async(req, res) => {
                 // create a new user
             await Admin.create(req.body);
             // send new user as response
-            logger.info(`Admin profile ${req.body.userId} registered`,{ userId: req.body.userId })
+            logger.info(`Admin profile ${req.body.userId} registered`, { userId: req.body.userId })
             res.json({ message: "Admin Profile Created, Pending Approval" });
         }
     } catch (error) {
@@ -91,7 +91,7 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     })
                     await AlumniPending.remove({ userId: curUserId });
                     res.send("User registration request rejected for " + user.firstName + ".");
-                    logger.info(`Alumni profile ${req.body.userId} rejected by admin`,{ userId:req.user.userId})
+                    logger.info(`Alumni profile ${req.body.userId} rejected by admin`, { userId: req.user.userId })
                     return;
                 } else {
                     res.send("Kindly add remarks of more than 10 characters to reject a User");
@@ -117,7 +117,7 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     }
                     console.log("Sent :" + info.response)
                 })
-                logger.info(`Alumni ${req.body.userId} approved by admin`,{ userId: req.user.userId})
+                logger.info(`Alumni ${req.body.userId} approved by admin`, { userId: req.user.userId })
                 res.json({ message: "Approved User as Alumni" });
             }
 
@@ -181,7 +181,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
                 res.send("Notice request rejected for " + alumniDetails.firstName + ".");
-                logger.info(`Notice ${req.body.noticeId} rejected by admin`,{ userId: req.user.userId })
+                logger.info(`Notice ${req.body.noticeId} rejected by admin`, { userId: req.user.userId })
                 return;
             } else {
                 var updatedNotice = await Notice.create(notice);
@@ -200,7 +200,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
                 res.send("Notice request approved for " + alumniDetails.firstName + ".");
-                logger.info(`Notice ${req.body.noticeId} approved by admin`,{ userId: req.user.userId })
+                logger.info(`Notice ${req.body.noticeId} approved by admin`, { userId: req.user.userId })
                 return;
             }
 
@@ -316,5 +316,38 @@ router.post("/dbrepair", isAdminLoggedIn, async(req, res) => {
 });
 
 
+
+router.post("/alumni_broadcast", isAdminLoggedIn, async(req, res) => {
+    const { Alumni } = req.context.models;
+    try {
+        const alumnis = await Alumni.find({}, 'email').lean();
+        const alumniEmails = alumnis.map(alumni => alumni.email);
+        const transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: process.env.MAIL_ID,
+                pass: process.env.MAIL_PASSWORD
+            }
+        });
+        const options = {
+            from: process.env.MAIL_ID,
+            to: alumniEmails,
+            subject: req.body.subject,
+            text: htmlToText(req.body.content),
+            html: req.body.content
+        }
+        transporter.sendMail(options, function(err, info) {
+            if (err) {
+                console.log(err);
+                return;
+            }
+            console.log("Broadcasted emails to alumni:" + info.messageId)
+        })
+        res.json({ message: "Broadcasted" })
+    } catch (error) {
+        console.error(error);
+        res.status(400);
+    }
+});
 
 module.exports = router;
