@@ -379,10 +379,9 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 
 });
 
-// get a students applications [3 options]
-// 1. /my_application_view --> All applications by student [in a sorted manner]
+// get a students applications [2 options]
+// 1. /my_application_view --> All applications by student
 // 2. /my_application_view?applicationId=application123 --> A specific application
-// 3. /my_application_view?filter=applied  [selected/applied/rejected] --> Applications of particular status
 router.get(
     "/my_application_view",
     isStudentLoggedIn,
@@ -402,12 +401,11 @@ router.get(
                     .catch((error) => res.status(400).json({ error }))
                 );
             }
-        } else if (req.query.filter) {
+        } else {
             res.json(
                 // likes:-1 => descending , dateUploaded:-1 ==> latest
                 await Application.find({
-                    studentId: curUserId,
-                    status: req.query.filter,
+                    studentId: curUserId
                 })
                 .lean()
                 .collation({ locale: "en" })
@@ -415,42 +413,7 @@ router.get(
                 .catch((error) => res.status(400).json({ error }))
             );
         }
-        // view all [default]
-        else {
-            res.json(
-                Application.aggregate([
-                    // match documents with the desired userId
-                    { $match: { studentId: req.query.studentId } },
-
-                    // sort documents by status and dateOfApplication
-                    { $sort: { status: -1, dateApplied: -1 } },
-
-                    // group documents by status
-                    {
-                        $group: {
-                            _id: "$status",
-                            applications: { $push: "$$ROOT" },
-                        },
-                    },
-
-                    // sort groups by status in the order of "selected", "applied", and "rejected"
-                    {
-                        $sort: {
-                            _id: {
-                                $switch: {
-                                    branches: [
-                                        { case: { $eq: ["$_id", "selected"] }, then: 0 },
-                                        { case: { $eq: ["$_id", "applied"] }, then: 1 },
-                                        { case: { $eq: ["$_id", "rejected"] }, then: 2 },
-                                    ],
-                                    default: 3,
-                                },
-                            },
-                        },
-                    },
-                ]).catch((error) => res.status(400).json({ error }))
-            );
-        }
+        
     }
 );
 
