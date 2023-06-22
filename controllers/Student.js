@@ -46,13 +46,14 @@ router.post("/signup", async(req, res) => {
                 var emptyFields = 0
                 const exclusions = ["bookmarkBlog", "favAlumId", "__v"]
                 for (const key of Object.keys(user)) {
+                    console.log(key, user[key])
                     if (user[key] || exclusions.includes(key)) {} else {
                         emptyFields++
                     }
                 }
                 req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
                 await Student.updateOne({ userId: user.userId }, req.body);
-                logger.info('Student profile registered',{ userId: req.user.userId })
+                logger.info('Student profile registered',{ userId: user.userId })
                 res.json({ message: "Registration Successful" });
 
             }
