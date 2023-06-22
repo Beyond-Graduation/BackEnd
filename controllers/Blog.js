@@ -7,6 +7,7 @@ const { htmlToText } = require('html-to-text');
 const cosineSimilarity = require('cosine-similarity');
 
 const router = Router();
+const logger = require("../logging/logger")
 
 //custom middleware could also be set at the router level like so
 // router.use(isLoggedIn) then all routes in this router would be protected
@@ -161,8 +162,10 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
 
         // Create the new blog entry with the embedded vector
         let blog = await Blog.create(req.body);
+        logger.info(`Blog ${req.body.blogId} created`,{ userId: req.user.userId })
         res.send("Created");
     } catch (error) {
+        logger.error("Error with blog creation",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -187,13 +190,16 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
                 req.body.vectorEmbedding = vectorEmbedding;
             }
             blog = await Blog.updateOne({ blogId: blog.blogId }, req.body);
+            logger.info(`Blog ${req.body.blogId} updated`,{ userId: req.user.userId })
             res.send("Updated");
         } else {
             res.status(400).json({
                 error: "Blog doesn't exist or is not published by the Current user ",
             });
+            logger.error(`Blog ${req.body.blogId} doesn't exist or is not published by the Current user`,{userId: req.user.userId})
         }
     } catch (error) {
+        logger.error("Error with blog updation",{ userId: req.user.userId })
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -216,8 +222,10 @@ router.post("/updateAll", isAdminLoggedIn, async(req, res) => {
             console.log(vectorEmbedding);
             blog = await Blog.updateOne({ blogId: blog.blogId }, { "$set": { 'vectorEmbedding': vectorEmbedding } });
         }
+        logger.info(`Admin profile ${req.user.userId} updated all blogs`,{ userId: req.user.userId })
         res.send("Updated All Blogs");
     } catch (error) {
+        logger.error("Error with updating all blogs",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -315,8 +323,10 @@ router.post("/addComments", isLoggedIn, async(req, res) => {
         await BlogComments.create(req.body).catch((error) =>
             res.status(400).json({ error })
         );
+        logger.info(`${user.__t} ${user.userId} added comment `,{ userId: user.userId })
         res.json({ message: "Added Comment" });
     } catch (error) {
+        logger.error("Error with adding comments",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -353,7 +363,7 @@ router.delete("/deleteBlog", isAlumniLoggedIn, async(req, res) => {
     const { BlogComments } = req.context.models;
 
     // Removing Blog Comments of the corresponding blog
-
+    logger.info(`Blog ${req.body.blogId} deleted by alumni`,{ userId: req.user.userId })
     await BlogComments.remove({ blogId: req.body.blogId });
     await User.updateMany({ bookmarkBlog: req.body.blogId }, { $pull: { bookmarkBlog: req.body.blogId } });
     await User.updateMany({ likedBlogs: req.body.blogId }, { $pull: { likedBlogs: req.body.blogId } });

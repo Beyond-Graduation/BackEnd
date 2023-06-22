@@ -7,7 +7,7 @@ const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom midd
 // const User = require("../models/User");
 const cosineSimilarity = require('cosine-similarity');
 const router = Router(); // create router to create route bundle
-
+const logger = require("../logging/logger")
 //DESTRUCTURE ENV VARIABLES WITH DEFAULTS
 const { SECRET = "secret" } = process.env;
 const { FRONTEND_HOST_LINK } = process.env;
@@ -31,14 +31,18 @@ router.post("/login", async(req, res) => {
                 const token = await jwt.sign({ userId: user.userId, userType: user.__t },
                     SECRET
                 );
+                logger.info(`${user.__t} ${user.userId} logged in`,{ userId: user.userId })
                 res.json({ token: token, userId: user.userId, userType: user.__t });
             } else {
-                res.status(400).json({ error: "password doesn't match" });
+                logger.error("password doesn't match",{ userId: user.userId })
+                res.status(400).json({ error: "Incorrect Password" });
             }
         } else {
+            logger.error("User doesn't exist",{ userId: user.userId })
             res.status(400).json({ error: "User doesn't exist" });
         }
     } catch (error) {
+        logger.error("Login failed")
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -76,12 +80,14 @@ router.post("/change_password", isLoggedIn, async(req, res) => {
                 }
                 console.log("Sent :" + info.response);
             });
-
+            logger.info('Password Change Sucessful',{ userId: user.userId })
             res.json({ message: "Password Changed Successfully" });
         } else {
+            logger.error('Incorrect Password',{ userId: user.userId })
             res.status(400).send("Incorrect Password");
         }
     } catch (error) {
+        logger.error('Error in password change',{ userId: user.userId })
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -134,8 +140,10 @@ router.post("/forgot_password", async(req, res) => {
         req.body.updated = Date.now();
         await User.updateOne({ email: req.body.email }, { passwordResetToken: passwordResetToken, updated: req.body.updated });
         user = await User.findOne({ email: req.body.email }).lean();
+        logger.info('Requested for forgot password',{ userId: user.userId })
         res.json(user);
     } else {
+        logger.error("User with this email doesn't exist!",{ userId: user.userId })
         res.status(400).send("User with this email doesn't exist!");
     }
 });
@@ -178,9 +186,10 @@ router.post("/reset_password", async(req, res) => {
             }
             console.log("Sent :" + info.response);
         });
-
+        logger.info('Reset Password successful',{ userId: user.userId })
         res.json({ message: "Password Reset Successfully" });
     } else {
+        logger.error('Failed password reset due to invalid link')
         res
             .status(400)
             .send(

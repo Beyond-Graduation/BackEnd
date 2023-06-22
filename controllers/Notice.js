@@ -4,6 +4,7 @@ const { isAlumniLoggedIn } = require("./middleware"); // import isAlumniLoggedIn
 const { isLoggedIn } = require("./middleware"); // import isLoggedIn custom middleware
 
 const router = Router();
+const logger = require("../logging/logger");
 
 router.post("/create", isLoggedIn, async(req, res) => {
     if (req.user.userType == "Admin") {
@@ -17,6 +18,7 @@ router.post("/create", isLoggedIn, async(req, res) => {
         await Notice.create(req.body).catch((error) =>
             res.status(400).json({ error })
         );
+        logger.info(`Notice ${req.body.noticeId} created by admin`,{ userId: req.user.userId })
         res.json({ message: "Admin Created Notice" });
 
     } else if (req.user.userType == "Alumni") {
@@ -31,9 +33,11 @@ router.post("/create", isLoggedIn, async(req, res) => {
         await NoticePending.create(req.body).catch((error) =>
             res.status(400).json({ error })
         );
+        logger.info(`Notice ${req.body.noticeId} publishing requested by alumni`,{ userId: req.user.userId })
         res.json({ message: "Alumni Created Notice, Approval Pending" });
     } else {
         res.status(400).json({ error: curUserId + " do not have the permission to publish notices. " });
+        logger.error('No permission to publish notice')
     }
 });
 

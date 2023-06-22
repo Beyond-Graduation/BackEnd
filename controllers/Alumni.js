@@ -8,7 +8,7 @@ const router = Router(); // create router to create route bundle
 const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 const { pdfToText } = require("../functions/textEmbedding.js");
 
-
+const logger = require("../logging/logger")
 
 // Signup route to create a new user
 router.post("/signup", async(req, res) => {
@@ -66,17 +66,13 @@ router.post("/signup", async(req, res) => {
                         100 - (emptyFields / totalFields) * 100
                     );
                     await AlumniPending.updateOne({ userId: user.userId }, req.body);
-
+                    logger.info(`Alumni profile ${req.body.userId} registered`,{ userId: req.body.userId })
                     res.json({ message: "Registration Successful" });
-
                 }
-
             }
-
-
         }
-
     } catch (error) {
+        logger.error('Error with alumni profile registration')
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -122,11 +118,14 @@ router.post("/update", isLoggedIn, async(req, res) => {
             await Alumni.updateOne({ userId: user.userId }, { profileCompletionPerc: profileCompletionPerc });
             // send updated user as response
             user = await Alumni.findOne({ userId: curUserId });
+            logger.info(`Alumni profile ${req.user.userId} updated`,{ userId: req.user.userId })
             res.json({ message: "Updation Successful!" });
         } else {
+            logger.error("Alumni doesn't exist",{userId: req.user.userId})
             res.status(400).json({ error: "Alumni doesn't exist" });
         }
     } catch (error) {
+        logger.error('Error with student profile updation')
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -153,7 +152,7 @@ router.post("/delete", async(req, res) => {
 
 router.get("/alumni_list", isLoggedIn, async(req, res) => {
     const { Alumni } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -168,11 +167,9 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });
@@ -187,14 +184,21 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
     // Year of Graduation Before Filter
     if (req.query.yearBefore) {
         const yearBefore = parseInt(req.query.yearBefore);
-        query.yearGraduation = { $lt: yearBefore };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$lt = yearBefore;
     }
 
     // Year of Graduation After Filter
     if (req.query.yearAfter) {
         const yearAfter = parseInt(req.query.yearAfter);
-        query.yearGraduation = { $gt: yearAfter };
+        if (!query.yearGraduation) {
+            query.yearGraduation = {};
+        }
+        query.yearGraduation.$gt = yearAfter;
     }
+
 
     try {
         let sortOptions = {};
@@ -219,7 +223,7 @@ router.get("/alumni_list", isLoggedIn, async(req, res) => {
             sortOptions = { dateJoined: 1, firstName: 1, lastName: 1, updated: 1 };
         }
 
-        const alumniList = await Alumni.find(query)
+        const alumniList = await Alumni.find(query, { vectorEmbedding: 0, blogClicks: 0 })
             .lean()
             .collation({ locale: "en" })
             .sort(sortOptions)
@@ -271,11 +275,13 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             curBookmarkBlogs.push(newblogId);
             console.log(curBookmarkBlogs);
             await Alumni.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
+            logger.info(`Alumni profile ${req.user.userId} bookmarked ${req.body.blogId} `,{ userId: req.user.userId })
             res.json({ message: "Bookmarked the blog" });
         } else {
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }
     } catch (error) {
+        logger.error("Error with blog bookmarking",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });

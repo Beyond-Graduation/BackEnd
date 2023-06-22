@@ -9,7 +9,7 @@ const { pdfToText } = require("../functions/textEmbedding.js");
 const cron = require('node-cron');
 const axios = require('axios');
 const router = Router(); // create router to create route bundle
-
+const logger = require("../logging/logger")
 // Signup route to create a new user
 router.post("/signup", async(req, res) => {
     const { Student } = req.context.models;
@@ -52,12 +52,13 @@ router.post("/signup", async(req, res) => {
                 }
                 req.body.profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
                 await Student.updateOne({ userId: user.userId }, req.body);
-
+                logger.info('Student profile registered',{ userId: req.user.userId })
                 res.json({ message: "Registration Successful" });
 
             }
         }
     } catch (error) {
+        logger.error('Error with student profile registration')
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -97,11 +98,14 @@ router.post("/update", isLoggedIn, async(req, res) => {
             }
             let profileCompletionPerc = parseInt(100 - ((emptyFields / totalFields) * 100))
             await Student.updateOne({ userId: user.userId }, { profileCompletionPerc: profileCompletionPerc });
+            logger.info(`Student profile ${req.user.userId} updated`,{ userId: req.user.userId })
             res.json({ message: "Updation Successful!" });
         } else {
+            logger.error("Student doesn't exist",{userId: req.user.userId})
             res.status(400).json({ error: "Student doesn't exist" });
         }
     } catch (error) {
+        logger.error("Error with student profile updation")
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -109,7 +113,7 @@ router.post("/update", isLoggedIn, async(req, res) => {
 
 router.get("/student_list", isLoggedIn, async(req, res) => {
     const { Student } = req.context.models;
-    const query = {};
+    let query = {};
 
     // Department Filter
     if (req.query.department) {
@@ -124,11 +128,9 @@ router.get("/student_list", isLoggedIn, async(req, res) => {
         // Build the $or array for filtering
         const orArray = [];
 
-        // Add conditions for all areasOfInterest
-        orArray.push({ areasOfInterest: { $all: areasOfInterest } });
-
         // Generate combinations of areasOfInterest and add conditions
         const combinations = generateCombinations(areasOfInterest);
+        console.log(combinations)
         combinations.forEach((combination) => {
             orArray.push({ areasOfInterest: { $all: combination } });
         });
@@ -272,13 +274,16 @@ router.post("/bookmark", isLoggedIn, async(req, res) => {
             curBookmarkBlogs.push(newblogId)
             console.log(curBookmarkBlogs)
             await Student.updateOne({ userId: curUserId }, { bookmarkBlog: curBookmarkBlogs });
+            logger.info(`Student profile ${req.user.userId} bookmarked ${req.body.blogId} `,{ userId: req.user.userId })
             // send updated user as response
             res.json({ message: "Bookmarked Blog" });
 
         } else {
+
             res.status(400).json({ error: newblogId + " is already Bookmarked!" });
         }
     } catch (error) {
+        logger.error("Error with blog bookmarking",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });

@@ -12,12 +12,10 @@ const triggerCloseRoute = async() => {
         }).select('internshipId alumniId role companyName deadline dateUploaded');
 
         console.log("Internships found to be expired on ", Date.now().toISOString(), internships);
-
-        for (const internship of internships) {
-            await axios.post(BACKEND_HOST_LINK + '/internship/close', {
-                internshipId: internship.internshipId,
-            });
-        }
+        const internshipIds = internships.map(internship => internship.internshipId);
+        await Internship.updateMany({ internshipId: { $in: internshipIds } }, // filter criteria using $in operator
+            { $set: { status: "closed" } } // update operation
+        );
     } catch (error) {
         console.error('Error triggering close route:', error);
     }
