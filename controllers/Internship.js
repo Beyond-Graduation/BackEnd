@@ -12,6 +12,7 @@ require("dotenv").config(); // load .env variables
 const cosineSimilarity = require('cosine-similarity');
 const router = Router();
 
+const logger = require("../logging/logger")
 // generate internshipId
 // get everything except alumniId,FirstName, Last Name, Status, DateUploaded
 // description is HTML
@@ -41,7 +42,9 @@ router.post("/create", isAlumniLoggedIn, async(req, res) => {
             res.status(400).json({ error })
         );
         res.json({ message: "Internship Created" });
+        logger.info(`Internship ${req.body.internshipId} created`,{ userId: req.user.userId })
     } catch (error) {
+        logger.error("Error with internship creation",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -116,14 +119,16 @@ router.post("/close", isAlumniLoggedIn, async(req, res) => {
             await Internship.updateOne({ internshipId: req.body.internshipId }, // filter criteria
                 { $set: { status: "closed" } } // update operation
             );
-
+            logger.info(`Alumni profile ${req.user.userId} closed internship ${req.body.internshipId}`,{ userId: req.user.userId })
             res.json({ message: "Closed Internship" });
         } else {
+            logger.error("Internship doesn't exist or is not published by the Current user",{userId: req.user.userId})
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
             });
         }
     } catch (error) {
+        logger.error("Error with closing internship",{userId: req.user.userId})
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -268,15 +273,18 @@ router.post("/withdraw", isAlumniLoggedIn, async(req, res) => {
             );
             await Application.deleteMany({ internshipId: req.body.internshipId });
 
-
+            logger.info(`Internship ${req.body.internshipId} withdrawn by alumni`,{ userId: req.user.userId })
             res.json({ message: "Internsip has been Withdrawn" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
             });
+            logger.error(`Internship ${req.body.internshipId} doesn't exist or is not published by the Current user`,{ userId: req.user.userId })
         }
     } catch (error) {
+        logger.error("Error with internship withdrawing")
         res.status(400).json({ error: `Error : ${error.message}` });
+        
     }
 });
 
@@ -295,15 +303,17 @@ router.post("/update", isAlumniLoggedIn, async(req, res) => {
             await Internship.updateOne({ internshipId: req.body.internshipId },
                 req.body
             );
-
+            logger.info(`Internship ${req.body.internshipId} updated by alumni`,{ userId: req.user.userId })
             res.json({ message: "Internship Updated" });
         } else {
             res.status(400).json({
                 error: "Internship doesn't exist or is not published by the Current user ",
             });
+            logger.error(`Internship ${req.body.internshipId} doesn't exist or is not published by the Current user`,{ userId: req.user.userId })
         }
     } catch (error) {
         res.status(400).json({ error: `Error : ${error.message}` });
+        logger.error("Error with internship updation")
     }
 });
 
@@ -357,12 +367,14 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 
             await Application.create(req.body);
             res.json({ message: "Application Successful" });
-
+            logger.info(`Application ${Application.applicationId} for Internship ${req.body.internshipId} applied by student`,{ userId:req.user.userId })
         } else {
+            
             res.status(400).send("Opportunity is Closed, Can't accept applications!");
         }
     } catch (error) {
         res.status(400).json({ error });
+        logger.error("Error with application")
     }
 
 });

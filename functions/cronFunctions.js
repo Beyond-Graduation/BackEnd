@@ -13,11 +13,9 @@ const triggerCloseRoute = async() => {
 
         console.log("Internships found to be expired on ", Date.now().toISOString(), internships);
 
-        for (const internship of internships) {
-            await axios.post(BACKEND_HOST_LINK + '/internship/close', {
-                internshipId: internship.internshipId,
-            });
-        }
+        await Internship.updateMany({ internshipId: { $in: internships } }, // filter criteria using $in operator
+            { $set: { status: "closed" } } // update operation
+        );
     } catch (error) {
         console.error('Error triggering close route:', error);
     }

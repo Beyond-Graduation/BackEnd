@@ -8,6 +8,8 @@ const router = Router(); // create router to create route bundle
 const { performWord2VecEmbedding } = require("../functions/textEmbedding.js");
 const { pdfToText } = require("../functions/textEmbedding.js");
 
+const logger = require("../logging/logger")
+
 // Signup route to create a new user
 router.post("/signup", async(req, res) => {
     const { Admin } = req.context.models;
@@ -27,9 +29,11 @@ router.post("/signup", async(req, res) => {
                 // create a new user
             await Admin.create(req.body);
             // send new user as response
+            logger.info(`Admin profile ${req.body.userId} registered`,{ userId: req.body.userId })
             res.json({ message: "Admin Profile Created, Pending Approval" });
         }
     } catch (error) {
+        logger.error('Error with admin profile registration')
         res.status(400).json({ error: `Error : ${error.message}` });
     }
 });
@@ -87,6 +91,7 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     })
                     await AlumniPending.remove({ userId: curUserId });
                     res.send("User registration request rejected for " + user.firstName + ".");
+                    logger.info(`Alumni profile ${req.body.userId} rejected by admin`,{ userId:req.user.userId})
                     return;
                 } else {
                     res.send("Kindly add remarks of more than 10 characters to reject a User");
@@ -112,11 +117,12 @@ router.post("/alumni_approve", isAdminLoggedIn, async(req, res) => {
                     }
                     console.log("Sent :" + info.response)
                 })
-
+                logger.info(`Alumni ${req.body.userId} approved by admin`,{ userId: req.user.userId})
                 res.json({ message: "Approved User as Alumni" });
             }
 
         } else {
+            logger.error("Error with alumni verification by admin")
             res.status(400).json({ error: req.body.userId + " is not a pending alumni" });
         }
 
@@ -175,6 +181,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
                 res.send("Notice request rejected for " + alumniDetails.firstName + ".");
+                logger.info(`Notice ${req.body.noticeId} rejected by admin`,{ userId: req.user.userId })
                 return;
             } else {
                 var updatedNotice = await Notice.create(notice);
@@ -193,6 +200,7 @@ router.post("/notice_approve", isAdminLoggedIn, async(req, res) => {
                     console.log("Sent :" + info.response)
                 })
                 res.send("Notice request approved for " + alumniDetails.firstName + ".");
+                logger.info(`Notice ${req.body.noticeId} approved by admin`,{ userId: req.user.userId })
                 return;
             }
 

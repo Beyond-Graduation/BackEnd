@@ -36,6 +36,8 @@
         "stable": "^0.1.8",
         "stopwords": "^0.0.9",
         "upload": "^1.1.1",
+        "winston": "^3.9.0",
+        "winston-mongodb": "^5.1.1",
         "word2vec": "^1.1.5"
     }
 }
