@@ -29,6 +29,16 @@ const ApplicationSchema = new Schema({
     dateApplied: { type: Date, required: true, default: Date.now() },
     dateofAction: { type: Date },
     resume: { type: String, default: "" },
+    role: { type: String, required: true },
+    companyName: { type: String, required: true },
+    description: { type: String, required: true },
+    stipend: { type: String, default: "Nil" },
+    duration: { type: String, required: true },
+    workingType: {
+        type: String,
+        required: true,
+        enum: ["full_time", "part_time"],
+    },
     vectorEmbedding: [Number]
 });
 

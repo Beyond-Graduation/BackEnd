@@ -345,6 +345,12 @@ router.post("/apply", isStudentLoggedIn, async(req, res) => {
 
         if (internship.status == "open") {
             req.body.alumniId = internship.alumniId;
+            req.body.role = internship.role;
+            req.body.companyName = internship.companyName;
+            req.body.description = internship.description;
+            req.body.stipend = internship.stipend;
+            req.body.duration = internship.duration;
+            req.body.workingType = internship.workingType;
             let resumeText = await pdfToText(req.body.resume);
             // Create an array to store the text strings
             let textStrings = [];
